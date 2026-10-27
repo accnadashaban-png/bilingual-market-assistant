@@ -3,7 +3,7 @@
 [![CI](https://github.com/accnadashaban-png/bilingual-market-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/accnadashaban-png/bilingual-market-assistant/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
-A ChatGPT-style assistant that answers stock-market questions in **Arabic (Egyptian, Gulf, Levantine, MSA) and English**, straight from a database. It plans with typed tools, runs only safe read-only SQL, streams natural answers, remembers the conversation, and plugs into any dashboard as a chat widget with one `<script>` tag.
+A conversational AI assistant that answers stock-market questions in **Arabic (Egyptian, Gulf, Levantine, MSA) and English**, straight from a database. It plans with typed tools, runs only safe read-only SQL, streams natural answers, remembers the conversation, and plugs into any dashboard as a chat widget with one `<script>` tag.
 
 ![Demo dashboard with the embedded chat widget answering an Arabic follow-up question](docs/dashboard-widget.jpg)
 
