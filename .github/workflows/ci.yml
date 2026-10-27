@@ -9,7 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  quality:
+    name: Lint, types, tests, evaluation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,19 +18,44 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,postgres,mcp]"
       - name: Lint
         run: ruff check .
       - name: Type check
         run: mypy market_assistant
       - name: Build demo database
-        run: python data/generate.py
-      - name: Tests (unit, API, red-team)
+        run: python scripts/generate_data.py
+      - name: Tests (agent, API, MCP, red-team, evaluation)
         run: pytest --cov=market_assistant --cov-report=term-missing
-      - name: Golden-dataset evaluation gate
-        run: python eval/run_eval.py --min-score 0.95
+      - name: Evaluation gate (536 cases)
+        run: python -m market_assistant.eval --min-score 0.98
+
+  postgres:
+    name: PostgreSQL backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: market
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      MA_TEST_PG_URL: postgresql://postgres:postgres@localhost:5432/market
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,postgres]"
+      - name: Tool parity with SQLite and read-only role checks
+        run: pytest tests/db/test_postgres.py -v
 
   secrets-scan:
+    name: Secrets scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,13 +66,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
+    name: Docker image and compose
     runs-on: ubuntu-latest
-    needs: test
+    needs: [quality, postgres]
     steps:
       - uses: actions/checkout@v4
+      - name: Validate compose file
+        run: docker compose config --quiet
       - name: Build image
         run: docker build -t bilingual-market-assistant .
-      - name: Smoke test
+      - name: Smoke test (SQLite)
         run: |
           docker run -d --name app -p 8000:8000 bilingual-market-assistant
           for i in $(seq 1 20); do curl -fs http://127.0.0.1:8000/ready && break; sleep 1; done
