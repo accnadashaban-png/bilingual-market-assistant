@@ -1,7 +1,7 @@
 [project]
 name = "bilingual-market-assistant"
-version = "2.0.0"
-description = "Arabic + English market-data assistant: LangGraph pipeline, typed tools, safe text-to-SQL, streaming chat widget and golden-dataset evaluation."
+version = "3.0.0"
+description = "Conversational Arabic + English market-data assistant: LangGraph pipeline, LLM provider failover, typed tools, safe text-to-SQL on SQLite or PostgreSQL, MCP server, streaming widget and a 536-case evaluation."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Nada Shaban" }]
@@ -18,18 +18,23 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2", "psycopg-pool>=3.2"]
+mcp = ["mcp>=2.0"]
 dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10"]
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["market_assistant"]
+[tool.setuptools.packages.find]
+include = ["market_assistant*"]
+
+[tool.setuptools.package-data]
+"market_assistant.eval" = ["datasets/*.jsonl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q --import-mode=importlib"
 
 [tool.ruff]
 line-length = 140
@@ -46,6 +51,6 @@ warn_unused_ignores = false
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = "market_assistant.pipeline"
+module = "market_assistant.agent.pipeline"
 # LangGraph's add_node overloads don't accept plain bound methods in mypy, although they work at runtime
 disable_error_code = ["call-overload", "arg-type"]

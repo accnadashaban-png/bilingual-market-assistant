@@ -5,12 +5,12 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY market_assistant ./market_assistant
-COPY data/generate.py ./data/generate.py
+COPY scripts ./scripts
 COPY web ./web
-RUN pip install --no-cache-dir -e . && python data/generate.py \
+RUN pip install --no-cache-dir -e ".[postgres,mcp]" && python scripts/generate_data.py \
     && useradd --create-home app && chown -R app /app
 USER app
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
-CMD ["uvicorn", "market_assistant.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "market_assistant.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

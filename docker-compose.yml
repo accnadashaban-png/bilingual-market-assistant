@@ -1,0 +1,38 @@
+# Full stack on PostgreSQL:  docker compose up --build
+# The API connects as the read-only role created by the loader, never as the database owner.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: market
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d market"]
+      interval: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  loader:
+    build: .
+    command: python scripts/load_postgres.py --admin-url postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/market
+    environment:
+      MA_RO_PASSWORD: ${MA_RO_PASSWORD:-market_ro_demo}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: .
+    ports: ["8000:8000"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MA_DATABASE_URL: postgresql://market_ro:${MA_RO_PASSWORD:-market_ro_demo}@db:5432/market
+    depends_on:
+      loader:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

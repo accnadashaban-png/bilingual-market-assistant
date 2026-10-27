@@ -32,7 +32,7 @@ market.db
 !.env.example
 !data/*.csv
 data/*.db
-eval/reports/*.json
+reports/*.json
 .coverage
 .mypy_cache/
 .ruff_cache/

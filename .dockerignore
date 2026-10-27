@@ -6,6 +6,6 @@ __pycache__
 *.pyc
 .env
 data/*.db
-eval/reports
+reports
 tests
 docs
