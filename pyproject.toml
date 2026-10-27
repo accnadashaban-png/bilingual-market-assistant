@@ -1,0 +1,51 @@
+[project]
+name = "bilingual-market-assistant"
+version = "2.0.0"
+description = "Arabic + English market-data assistant: LangGraph pipeline, typed tools, safe text-to-SQL, streaming chat widget and golden-dataset evaluation."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Nada Shaban" }]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlglot>=25",
+    "langgraph>=0.2",
+    "httpx>=0.27",
+    "prometheus-client>=0.20",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["market_assistant"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = false
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "market_assistant.pipeline"
+# LangGraph's add_node overloads don't accept plain bound methods in mypy, although they work at runtime
+disable_error_code = ["call-overload", "arg-type"]

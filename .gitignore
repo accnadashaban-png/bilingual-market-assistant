@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Secrets and local config
+.env
+.env.*
+*.key
+*.pem
+
+# Data and outputs
+*.csv
+*.xlsx
+*.db
+*.sqlite
+output/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+market.db
+!.env.example
+!data/*.csv
+data/*.db
+eval/reports/*.json
+.coverage
+.mypy_cache/
+.ruff_cache/
