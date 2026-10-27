@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Type check
+        run: mypy market_assistant
+      - name: Build demo database
+        run: python data/generate.py
+      - name: Tests (unit, API, red-team)
+        run: pytest --cov=market_assistant --cov-report=term-missing
+      - name: Golden-dataset evaluation gate
+        run: python eval/run_eval.py --min-score 0.95
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t bilingual-market-assistant .
+      - name: Smoke test
+        run: |
+          docker run -d --name app -p 8000:8000 bilingual-market-assistant
+          for i in $(seq 1 20); do curl -fs http://127.0.0.1:8000/ready && break; sleep 1; done
+          curl -fs -X POST http://127.0.0.1:8000/v1/ask -H 'Content-Type: application/json' \
+            -d '{"message": "What is the price of Atlas Robotics?"}' | grep -q '"route":"data"'
