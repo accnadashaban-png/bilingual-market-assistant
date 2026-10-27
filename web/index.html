@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market Dashboard Demo</title>
+<style>
+  :root { --bg: #f5f7fb; --card: #fff; --fg: #111827; --muted: #6b7280; --line: #e5e7eb; --up: #047857; --down: #b91c1c; --accent: #2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0b1020; --card: #121a2e; --fg: #e5e7eb; --muted: #9ca3af; --line: #26314d; --up: #34d399; --down: #f87171; --accent: #3b82f6; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, "Segoe UI", Arial, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 100px; }
+  h1 { font-size: 22px; margin: 0; } .sub { color: var(--muted); margin: 4px 0 20px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tabs button { border: 1px solid var(--line); background: var(--card); color: var(--fg); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .kpi span { color: var(--muted); font-size: 12px; } .kpi b { display: block; font-size: 22px; margin-top: 4px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; } th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; } td.num { font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .note { color: var(--muted); font-size: 12px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Market Dashboard</h1>
+  <p class="sub">Demo dashboard with the assistant embedded as a widget (bottom corner). All companies and prices are fictional.</p>
+  <div class="tabs" role="tablist">
+    <button class="on" data-country="">All markets</button>
+    <button data-country="US">US</button><button data-country="SA">Saudi Arabia</button><button data-country="EG">Egypt</button>
+  </div>
+  <section class="kpis">
+    <div class="kpi"><span>Advancers</span><b id="adv">–</b></div>
+    <div class="kpi"><span>Decliners</span><b id="dec">–</b></div>
+    <div class="kpi"><span>Average change</span><b id="avg">–</b></div>
+    <div class="kpi"><span>Trading day</span><b id="day">–</b></div>
+  </section>
+  <div class="card"><table>
+    <thead><tr><th>Company</th><th>Ticker</th><th>Sector</th><th>Last</th><th>Day change</th><th>RSI(14)</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="6">Loading…</td></tr></tbody>
+  </table></div>
+  <p class="note">The chat widget is added with one line: <code>&lt;script src="/static/widget.js" defer&gt;&lt;/script&gt;</code></p>
+</main>
+<script>
+  const fmt = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  async function load(country) {
+    const res = await fetch("/v1/market/snapshot" + (country ? "?country=" + country : ""));
+    const data = await res.json();
+    const rows = data.rows;
+    document.getElementById("adv").textContent = rows.filter((r) => r.change_pct > 0).length;
+    document.getElementById("dec").textContent = rows.filter((r) => r.change_pct < 0).length;
+    const avg = rows.reduce((s, r) => s + r.change_pct, 0) / (rows.length || 1);
+    document.getElementById("avg").innerHTML = `<span class="${avg >= 0 ? "up" : "down"}">${avg >= 0 ? "+" : ""}${avg.toFixed(2)}%</span>`;
+    document.getElementById("day").textContent = data.date;
+    document.getElementById("rows").innerHTML = rows.map((r) => `<tr>
+      <td>${esc(r.name_en)}</td><td>${esc(r.ticker)}</td><td>${esc(r.sector)}</td>
+      <td class="num">${fmt(r.last_close)} ${esc(r.currency)}</td>
+      <td class="num ${r.change_pct >= 0 ? "up" : "down"}">${r.change_pct >= 0 ? "+" : ""}${fmt(r.change_pct)}%</td>
+      <td class="num">${r.rsi14 ?? "–"}</td></tr>`).join("");
+  }
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach((x) => x.classList.remove("on"));
+    b.classList.add("on");
+    load(b.dataset.country);
+  }));
+  load("");
+</script>
+<script src="/static/widget.js" data-title="Market Assistant" defer></script>
+</body>
+</html>
