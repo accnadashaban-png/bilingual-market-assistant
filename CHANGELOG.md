@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.1.0
+
+- **Local app** (`python -m market_assistant app`): a private desktop app with chat, data connections and AI
+  provider settings. Listens on 127.0.0.1 only, checks the Host header (DNS rebinding) and Origin, protects settings
+  with a per-launch token, and never returns saved keys or database passwords, only masked hints.
+- **Bring your own data:** CSV import with row-level validation (file and line in every error), an atomic switch
+  that keeps the previous data on failure, and indicators and technical signals computed on import; or connect a
+  SQLite file or a read-only PostgreSQL user.
+- Honest answers on short histories: a period longer than the data now says so instead of measuring from a shorter
+  window.
+- Unexpected tool failures always end with a clear message, in chat and in the stream.
+- `company_profile` uses the latest fiscal year.
+
 ## 3.0.0
 
 - **LLM provider failover:** `LLMRouter` over a configurable provider group, with failure-specific cooldowns,

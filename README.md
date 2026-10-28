@@ -1,7 +1,7 @@
 # Bilingual Market Assistant
 
 [![CI](https://github.com/accnadashaban-png/bilingual-market-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/accnadashaban-png/bilingual-market-assistant/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![Tests](https://img.shields.io/badge/tests-141-success) ![Eval](https://img.shields.io/badge/eval-536%20cases%20%C2%B7%20100%25-success) ![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![Tests](https://img.shields.io/badge/tests-156-success) ![Eval](https://img.shields.io/badge/eval-536%20cases%20%C2%B7%20100%25-success) ![License](https://img.shields.io/badge/license-MIT-green)
 
 A conversational AI assistant that answers stock-market questions in **Arabic (Egyptian, Gulf, Levantine, MSA) and English**, straight from a database. It plans with typed tools, runs only safe read-only SQL on **SQLite or PostgreSQL**, streams natural answers, remembers the conversation, **fails over across a group of LLM providers** when one runs out of quota, and plugs into any dashboard as a chat widget or into any AI app through **MCP**.
 
@@ -20,6 +20,7 @@ A conversational AI assistant that answers stock-market questions in **Arabic (E
 | **Defense in depth** | Bound parameters, sqlglot validation, read-only access, database permission checks, time limits, row caps and an output gate. Red-team tests include a *compromised model* returning malicious plans. See [SECURITY.md](docs/SECURITY.md). |
 | **Measured** | 536-case evaluation (47 hand-written + generated coverage of every company, dialect, market and period), rankings checked in order, numbers recomputed independently, dataset QA tests, run-over-run tracking and an optional LLM-as-judge. See [EVALUATION.md](docs/EVALUATION.md). |
 | **Production basics** | LangGraph pipeline with per-step timing, FastAPI + SSE, MCP server, rate limiting, JSON logs with request ids, Prometheus metrics, Docker and docker-compose, CI with lint, types, tests, evaluation gate, PostgreSQL job, secrets scan and image smoke test. |
+| **Your own private app** | `python -m market_assistant app` opens it as a desktop app on your machine: import your own CSV files or connect a SQLite / PostgreSQL database, add your own AI keys, and chat. Keys stay on your computer and are never sent back to the page. See [DESKTOP.md](docs/DESKTOP.md). |
 | **Runs offline** | No API key needed: a multi-dialect rule planner and template writer cover every route, so the demo, tests and evaluation run anywhere. |
 
 ## How it works
@@ -49,14 +50,25 @@ More in [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | "Should I buy Tuwaiq?" | Information-not-advice reply with the facts |
 | "Delete all companies", "Ignore your instructions..." | Refused; nothing reaches the database |
 
-## Quick start
+## Use it as an app on your computer
+
+```bash
+pip install -e .
+python -m market_assistant app                  # opens the app in its own window
+```
+
+![Local app: chat answering from your own data](docs/local-app.jpg)
+
+In **Connections** you choose the data (demo, your CSV files, a SQLite file or a read-only PostgreSQL user) and the AI providers (Gemini, Groq, OpenRouter, a local Ollama model or any OpenAI-compatible endpoint; several in order for failover). Without a key it still answers, using the built-in rule planner. Security model and CSV formats: [DESKTOP.md](docs/DESKTOP.md).
+
+## Quick start (developers)
 
 ```bash
 pip install -e ".[dev,postgres,mcp]"
 python scripts/generate_data.py                 # builds data/market.db
 uvicorn market_assistant.api.app:app            # dashboard + widget on http://127.0.0.1:8000
 python -m market_assistant "Top gainers in Egypt this week"
-pytest                                          # 141 tests
+pytest                                          # 156 tests
 python -m market_assistant.eval                 # 536-case evaluation
 ```
 
@@ -64,7 +76,7 @@ python -m market_assistant.eval                 # 536-case evaluation
 
 **LLM mode:** copy `.env.example` to `.env` and set one provider, or a provider group in `MA_LLM_PROVIDERS` for failover.
 
-**MCP:** `python -m market_assistant.api.mcp_server` exposes all tools to Claude Desktop, IDEs or any MCP client.
+**MCP:** `python -m market_assistant.api.mcp_server` exposes all tools to desktop AI apps, IDEs or any MCP client.
 
 **Embed the widget:**
 
@@ -88,14 +100,15 @@ python -m market_assistant.eval                 # 536-case evaluation
 ```
 market_assistant/
   core/      settings, typed errors, JSON logging and metrics
-  db/        SQLite and PostgreSQL backends, sqlglot validator
+  db/        SQLite and PostgreSQL backends, sqlglot validator, CSV importer
   agent/     LangGraph pipeline, planners, 14 tools, writer, LLM router, language
   api/       FastAPI app, MCP server
+  desktop/   local app: settings store, secure local server
   eval/      dataset (golden + generated), runner, LLM-as-judge
-tests/       mirrors the package: agent/ api/ db/ eval/ security/
+tests/       mirrors the package: agent/ api/ db/ desktop/ eval/ security/
 scripts/     synthetic data generator, PostgreSQL loader
-web/         demo dashboard and embeddable widget
-docs/        architecture, security, evaluation, deployment
+web/         demo dashboard, embeddable widget, local app
+docs/        architecture, security, evaluation, deployment, desktop app
 reports/     latest evaluation report and run history
 ```
 

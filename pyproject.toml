@@ -1,6 +1,6 @@
 [project]
 name = "bilingual-market-assistant"
-version = "3.0.0"
+version = "3.1.0"
 description = "Conversational Arabic + English market-data assistant: LangGraph pipeline, LLM provider failover, typed tools, safe text-to-SQL on SQLite or PostgreSQL, MCP server, streaming widget and a 536-case evaluation."
 readme = "README.md"
 license = { text = "MIT" }
