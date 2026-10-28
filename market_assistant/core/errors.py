@@ -30,6 +30,12 @@ class NotFoundError(AssistantError):
     message_ar = "ملقتش الشركة دي في البيانات."
 
 
+class NotEnoughHistoryError(AssistantError):
+    code = "not_enough_history"
+    message_en = "The data doesn't go back far enough for that period. Try a shorter one, like 3 months."
+    message_ar = "البيانات مش راجعة لورا كفاية للفترة دي. جرّب فترة أقصر، زي 3 شهور."
+
+
 class PlanningError(AssistantError):
     code = "planning_failed"
     message_en = "I didn't quite get that. Could you rephrase it?"
