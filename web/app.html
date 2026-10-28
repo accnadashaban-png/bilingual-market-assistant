@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="app-token" content="__APP_TOKEN__">
+<meta name="theme-color" content="#F7F4EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121917" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/app/manifest.webmanifest">
+<link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+<title>Market Assistant</title>
+<style>
+  :root {
+    --bg:#F7F4EE; --side:#F1EDE4; --panel:#FFFFFF; --panel-2:#FBF9F5; --fg:#1E2A28; --muted:#5B6763; --faint:#8A948F;
+    --line:#E6E0D5; --accent:#1F5A4F; --accent-hover:#174840; --soft:#E4EEE9; --sand:#EFE6D8; --err:#A12C2C; --errbg:#FBEAEA;
+    --shadow:0 1px 2px rgba(30,42,40,.04), 0 8px 24px rgba(30,42,40,.06);
+    --font:"Inter", "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg:#121917; --side:#0F1513; --panel:#1A2421; --panel-2:#17201D; --fg:#E6ECE9; --muted:#9AA8A3; --faint:#74827D;
+    --line:#2A3632; --accent:#7CC4AE; --accent-hover:#95D3BF; --soft:#1F3530; --sand:#2A2F26; --err:#F4A3A3; --errbg:#3A1E1E;
+    --shadow:0 1px 2px rgba(0,0,0,.2), 0 8px 24px rgba(0,0,0,.25);
+  } }
+  * { box-sizing:border-box; } html, body { height:100%; } [hidden] { display:none !important; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.65 var(--font); display:flex; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:8px; }
+  svg.i { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* sidebar */
+  nav { width:236px; flex:none; background:var(--side); border-inline-end:1px solid var(--line); padding:16px 12px; display:flex; flex-direction:column; gap:2px; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:650; letter-spacing:-.01em; margin:2px 8px 18px; }
+  .brand img { width:30px; height:30px; }
+  .new { display:flex; align-items:center; gap:8px; border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:9px 12px; cursor:pointer; margin-bottom:12px; font-weight:550; box-shadow:0 1px 2px rgba(30,42,40,.04); }
+  .new:hover { border-color:var(--accent); }
+  nav button[data-s] { display:flex; align-items:center; gap:10px; text-align:start; border:0; background:none; padding:9px 12px; border-radius:10px; cursor:pointer; color:var(--muted); }
+  nav button[data-s]:hover { background:color-mix(in srgb, var(--fg) 5%, transparent); color:var(--fg); }
+  nav button[data-s].on { background:var(--panel); color:var(--fg); font-weight:600; box-shadow:0 1px 2px rgba(30,42,40,.05); }
+  .status { margin-top:auto; font-size:12.5px; color:var(--muted); padding:12px; border-radius:12px; background:color-mix(in srgb, var(--fg) 3%, transparent); line-height:1.5; }
+  .status .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#2E9C74; margin-inline-end:6px; vertical-align:1px; }
+
+  main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  section { display:none; flex:1; min-height:0; } section.on { display:flex; flex-direction:column; }
+
+  /* conversation */
+  .col { width:100%; max-width:760px; margin:0 auto; padding:0 24px; }
+  #scroll { flex:1; overflow-y:auto; }
+  #log { display:flex; flex-direction:column; gap:22px; padding-top:32px; padding-bottom:24px; }
+  .turn-me { align-self:flex-end; max-width:80%; background:var(--sand); border-radius:18px; padding:10px 16px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .turn-bot { display:flex; gap:14px; align-items:flex-start; }
+  .turn-bot .av { width:28px; height:28px; flex:none; margin-top:1px; }
+  .answer { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .answer p { margin:0 0 10px; } .answer p:last-child { margin-bottom:0; } .answer ul { margin:4px 0 10px; padding-inline-start:20px; } .answer li { margin:3px 0; }
+  .answer strong { font-weight:650; }
+  .answer.error { background:var(--errbg); color:var(--err); border-radius:12px; padding:10px 14px; }
+  .tw { overflow-x:auto; margin:10px 0; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+  table { border-collapse:collapse; font-size:13.5px; width:100%; font-variant-numeric:tabular-nums; }
+  th { background:var(--panel-2); font-weight:600; color:var(--muted); font-size:12.5px; }
+  th, td { padding:8px 12px; text-align:start; white-space:nowrap; border-bottom:1px solid var(--line); } tr:last-child td { border-bottom:0; }
+  details { margin-top:10px; font-size:12.5px; color:var(--faint); } summary { cursor:pointer; width:max-content; } summary:hover { color:var(--muted); }
+  details code { display:block; margin-top:6px; padding:10px 12px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line); white-space:pre-wrap; direction:ltr; text-align:left; font:12px/1.55 ui-monospace, Consolas, monospace; color:var(--muted); }
+  .cursor::after { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent); margin-inline-start:4px; animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity:.25; transform:scale(.7); } }
+
+  /* empty state */
+  #empty { flex:1; display:flex; flex-direction:column; justify-content:center; padding-bottom:40px; }
+  #empty .mark { width:44px; height:44px; margin-bottom:18px; }
+  #empty h1 { font-size:30px; line-height:1.2; letter-spacing:-.02em; font-weight:600; margin:0 0 6px; }
+  #empty p { color:var(--muted); margin:0 0 26px; }
+  .chips { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+  .chips button { text-align:start; border:1px solid var(--line); background:var(--panel); border-radius:14px; padding:12px 14px; cursor:pointer; color:var(--fg); box-shadow:0 1px 2px rgba(30,42,40,.03); }
+  .chips button:hover { border-color:var(--accent); }
+
+  /* composer */
+  .composer { padding-bottom:14px; }
+  form.ask { display:flex; align-items:flex-end; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:8px 8px 8px 18px; box-shadow:var(--shadow); }
+  form.ask:focus-within { border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  form.ask input { flex:1; border:0; outline:0; background:transparent; color:var(--fg); font:inherit; padding:9px 0; min-width:0; }
+  .send { width:38px; height:38px; flex:none; border:0; border-radius:12px; background:var(--accent); color:var(--bg); display:grid; place-items:center; cursor:pointer; }
+  .send:hover { background:var(--accent-hover); } .send:disabled { opacity:.35; cursor:default; }
+  .fine { text-align:center; font-size:12px; color:var(--faint); margin:8px 0 0; }
+
+  /* settings pages */
+  .page { overflow-y:auto; flex:1; }
+  .page .col { padding-top:36px; padding-bottom:36px; }
+  .page h1 { font-size:24px; letter-spacing:-.02em; font-weight:600; margin:0 0 4px; }
+  .lead { color:var(--muted); margin:0 0 22px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px 22px; margin-bottom:16px; box-shadow:var(--shadow); }
+  h2 { font-size:16px; font-weight:650; margin:0 0 2px; } .muted { color:var(--muted); font-size:13.5px; margin:0 0 14px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; padding:8px 0; } .row label { min-width:150px; color:var(--muted); font-size:13.5px; }
+  .row + .row { border-top:1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+  input, select { padding:9px 12px; border-radius:10px; border:1px solid var(--line); background:var(--panel-2); color:var(--fg); font:inherit; font-size:14px; }
+  input:focus, select:focus { outline:0; border-color:var(--accent); }
+  input[type=file] { padding:6px; font-size:13px; }
+  .btn { border:1px solid var(--line); background:var(--panel); border-radius:10px; padding:8px 14px; font-size:14px; cursor:pointer; }
+  .btn:hover { border-color:var(--accent); }
+  .primary { border:0; border-radius:10px; background:var(--accent); color:var(--bg); padding:9px 16px; font-weight:600; font-size:14px; cursor:pointer; }
+  .primary:hover { background:var(--accent-hover); } .primary:disabled { opacity:.5; }
+  .prov { display:grid; grid-template-columns:1fr 1.6fr 1.2fr 1.3fr auto auto; gap:8px; align-items:center; margin:8px 0; }
+  @media (max-width:900px) { .prov { grid-template-columns:1fr 1fr; } nav { width:200px; } .chips { grid-template-columns:1fr; } }
+  .note { font-size:12.5px; color:var(--muted); } .ok { color:var(--accent); font-weight:600; } .bad { color:var(--err); font-weight:600; }
+  .lock { display:flex; gap:10px; align-items:flex-start; background:var(--soft); color:var(--accent); border-radius:14px; padding:12px 14px; font-size:13.5px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="spark" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="var(--accent)"/><path fill="var(--bg)" d="M30 12C31.6 24.6 37.4 30.4 50 32C37.4 33.6 31.6 39.4 30 52C28.4 39.4 22.6 33.6 10 32C22.6 30.4 28.4 24.6 30 12Z"/><path fill="var(--bg)" opacity=".7" d="M48 8C48.6 12.6 50.4 14.4 55 15C50.4 15.6 48.6 17.4 48 22C47.4 17.4 45.6 15.6 41 15C45.6 14.4 47.4 12.6 48 8Z"/></symbol>
+</svg>
+<nav aria-label="Sections">
+  <div class="brand"><img src="/app/icon.svg" alt=""><span>Market Assistant</span></div>
+  <button class="new" id="new" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New chat</button>
+  <button data-s="chat" class="on"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>Chat</button>
+  <button data-s="connections"><svg class="i" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>Connections</button>
+  <button data-s="about"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>About</button>
+  <div class="status" id="status">Loading…</div>
+</nav>
+<main>
+  <section id="chat" class="on">
+    <div id="scroll">
+      <div class="col" id="empty">
+        <svg class="mark"><use href="#spark"/></svg>
+        <h1>What would you like to know about the market?</h1>
+        <p>Prices, performance, sectors, signals and risk, in Arabic or English.<br><span dir="rtl" lang="ar">اسأل عن الأسعار والأداء والقطاعات والمخاطر، بالعربي أو بالإنجليزي.</span></p>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="col" id="log" aria-live="polite" hidden></div>
+    </div>
+    <div class="col composer">
+      <form class="ask" id="ask"><input id="q" dir="auto" maxlength="500" autocomplete="off" placeholder="Ask about the market… اسأل عن السوق" aria-label="Your question">
+        <button class="send" id="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></form>
+      <p class="fine">Answers come from your data. They are information, not investment advice.</p>
+    </div>
+  </section>
+
+  <section id="connections"><div class="page"><div class="col">
+    <h1>Connections</h1><p class="lead">Choose the data the assistant reads and the AI models it uses.</p>
+    <div class="lock"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Everything on this page stays on this computer. Keys are saved in your local settings file and are never shown again, only their last 4 characters.</span></div>
+    <div class="card">
+      <h2>Data</h2><p class="muted">Where the assistant reads market data from. It only ever reads.</p>
+      <div class="row"><label>Current</label><b id="data-now">–</b></div>
+      <div class="row"><label>Use demo data</label><button class="btn" id="use-demo">Switch to demo</button></div>
+      <div class="row"><label for="f-companies">companies.csv</label><input type="file" id="f-companies" accept=".csv"></div>
+      <div class="row"><label for="f-prices">daily_prices.csv</label><input type="file" id="f-prices" accept=".csv"></div>
+      <div class="row"><label for="f-fund">fundamentals.csv <span class="note">(optional)</span></label><input type="file" id="f-fund" accept=".csv"><button class="primary" id="import">Import CSV files</button></div>
+      <p class="note">Indicators (moving averages, RSI, 52-week range) and technical signals are computed for you. Column formats are in the README.</p>
+      <div class="row"><label>SQLite file</label><input id="sqlite" size="40" placeholder="C:\data\market.db"><button class="btn" id="use-sqlite">Connect</button></div>
+      <div class="row"><label>PostgreSQL</label><input id="pg" size="40" type="password" placeholder="postgresql://readonly_user:password@host:5432/db"><button class="btn" id="use-pg">Connect</button></div>
+      <p id="data-msg" class="note"></p>
+    </div>
+    <div class="card">
+      <h2>AI providers</h2><p class="muted">Tried in order. When one is out of free quota, rate-limited or down, the next one answers automatically. With none, the assistant runs offline.</p>
+      <div id="providers"></div>
+      <div class="row"><button class="btn" id="add">+ Add provider</button>
+        <select id="preset" aria-label="Preset"><option value="">Presets…</option><option>Gemini</option><option>Groq</option><option>OpenRouter</option><option>Ollama (local)</option></select>
+        <button class="primary" id="save">Save providers</button><span id="prov-msg" class="note"></span></div>
+    </div>
+  </div></div></section>
+
+  <section id="about"><div class="page"><div class="col">
+    <h1>About</h1><p class="lead">A private Arabic and English market assistant that runs on your computer.</p>
+    <div class="card">
+      <p>It plans each question, runs safe read-only queries, and answers like an analyst: a sentence for one fact, a table for comparisons. Open “How I got this” under any answer to see the exact steps.</p>
+      <p class="note">Install it as an app from your browser menu (Install / Apps). It runs only on this computer at 127.0.0.1.</p>
+      <p class="note">Answers are information, not investment advice.</p>
+    </div>
+  </div></div></section>
+</main>
+<script>
+  const TOKEN = document.querySelector('meta[name="app-token"]').content;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const admin = (path, opts = {}) => fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-App-Token": TOKEN, ...(opts.headers || {})}})
+    .then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)); return body; });
+  const PRESETS = {
+    "Gemini": {base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.5-flash"},
+    "Groq": {base_url: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile"},
+    "OpenRouter": {base_url: "https://openrouter.ai/api/v1", model: "meta-llama/llama-3.3-70b-instruct:free"},
+    "Ollama (local)": {base_url: "http://localhost:11434/v1", model: "qwen2.5:7b"},
+  };
+
+  document.querySelectorAll("nav button[data-s]").forEach((b) => b.onclick = () => {
+    document.querySelectorAll("nav button[data-s]").forEach((x) => x.classList.toggle("on", x === b));
+    document.querySelectorAll("main section").forEach((s) => s.classList.toggle("on", s.id === b.dataset.s));
+  });
+
+  // ---------- chat ----------
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const cells = (row) => row.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+  function render(md) {
+    const lines = md.split("\n"); let html = "";
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim().startsWith("|") && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1] || "")) {
+        html += "<div class='tw'><table><thead><tr>" + cells(line).map((c) => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>";
+        i += 2; while (i < lines.length && lines[i].trim().startsWith("|")) { html += "<tr>" + cells(lines[i]).map((c) => `<td>${inline(c)}</td>`).join("") + "</tr>"; i++; }
+        html += "</tbody></table></div>"; i--;
+      } else if (/^\s*[-*] /.test(line)) {
+        html += "<ul>"; while (i < lines.length && /^\s*[-*] /.test(lines[i])) { html += `<li>${inline(lines[i].replace(/^\s*[-*] /, ""))}</li>`; i++; } html += "</ul>"; i--;
+      } else if (line.trim()) { html += `<p>${inline(line)}</p>`; }
+    }
+    return html;
+  }
+  let session = null;
+  const scroller = () => $("scroll");
+  function showEmpty(on) { $("empty").hidden = !on; $("log").hidden = on; }
+  function bubble(cls, html) {
+    showEmpty(false);
+    const row = document.createElement("div"), d = document.createElement("div");
+    if (cls === "me") { row.className = "turn-me"; row.dir = "auto"; row.innerHTML = html; $("log").appendChild(row); scroller().scrollTop = scroller().scrollHeight; return row; }
+    row.className = "turn-bot"; row.innerHTML = '<svg class="av" aria-hidden="true"><use href="#spark"/></svg>';
+    d.className = "answer " + cls; d.dir = "auto"; d.innerHTML = html; row.appendChild(d); $("log").appendChild(row);
+    scroller().scrollTop = scroller().scrollHeight; return d;
+  }
+  // keep the newest text in view while it streams, unless the reader scrolled up to read something earlier
+  function follow(update) { const l = scroller(), atEnd = l.scrollHeight - l.scrollTop - l.clientHeight < 80; update(); if (atEnd) l.scrollTop = l.scrollHeight; }
+  async function ask(q) {
+    bubble("me", esc(q)); const d = bubble("cursor", ""); $("send").disabled = true; let text = "";
+    try {
+      const r = await fetch("/v1/ask/stream", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({message: q, session_id: session})});
+      if (!r.ok || !r.body) { const e = await r.json().catch(() => ({})); throw new Error((e.detail && e.detail.message) || "The assistant is unavailable."); }
+      const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "";
+      for (;;) { const {value, done} = await reader.read(); if (done) break; buf += dec.decode(value, {stream: true}); let cut;
+        while ((cut = buf.indexOf("\n\n")) >= 0) { const chunk = buf.slice(0, cut); buf = buf.slice(cut + 2); const line = chunk.split("\n").find((l) => l.startsWith("data:")); if (!line) continue;
+          const ev = JSON.parse(line.slice(5));
+          if (ev.event === "meta") session = ev.session_id;
+          if (ev.event === "delta") { text += ev.text; follow(() => { d.innerHTML = render(text); }); }
+          if (ev.event === "final") follow(() => { d.innerHTML = render(ev.answer); if (ev.tool_calls && ev.tool_calls.length) { const det = document.createElement("details"); det.innerHTML = "<summary>How I got this</summary>"; const c = document.createElement("code"); c.textContent = ev.tool_calls.map((t) => `${t.tool}(${JSON.stringify(t.args)}) → ${t.rows} rows`).join("\n") + "\n" + (ev.trace || []).map((t) => `${t.step} ${t.ms} ms`).join(" · "); det.appendChild(c); d.appendChild(det); } });
+          if (ev.event === "error") throw new Error(ev.message); } }
+    } catch (e) { d.classList.add("error"); d.textContent = e.message; }
+    finally { d.classList.remove("cursor"); $("send").disabled = false; $("q").focus(); }
+  }
+  $("ask").onsubmit = (e) => { e.preventDefault(); const q = $("q").value.trim(); if (q && !$("send").disabled) { $("q").value = ""; ask(q); } };
+  function showChips(kind, company) {
+    const list = kind === "demo" || !company
+      ? ["Top gainers this week", "سهم أطلس بكام؟", "Which sector did best this month?", "How risky is Atlas Robotics?", "فيه اختراقات النهارده؟"]
+      : ["Top gainers this week", `What's the price of ${company}?`, "Which sector did best this month?", `How risky is ${company}?`, "فيه اختراقات النهارده؟"];
+    $("chips").innerHTML = "";
+    list.forEach((s) => { const b = document.createElement("button"); b.type = "button"; b.textContent = s; b.dir = "auto";
+      b.onclick = () => { if (!$("send").disabled) ask(s); }; $("chips").appendChild(b); });
+  }
+  showChips("demo");
+  $("new").onclick = () => {
+    if ($("send").disabled) return;
+    session = null; $("log").innerHTML = ""; showEmpty(true);
+    document.querySelector('nav button[data-s="chat"]').click(); $("q").focus();
+  };
+
+  // ---------- connections ----------
+  function providerRow(p = {}) {
+    const row = document.createElement("div"); row.className = "prov";
+    row.innerHTML = `<input class="p-name" placeholder="Name" value="${esc(p.name || "")}">
+      <input class="p-url" placeholder="https://…/v1" value="${esc(p.base_url || "")}">
+      <input class="p-model" placeholder="Model" value="${esc(p.model || "")}">
+      <input class="p-key" type="password" autocomplete="off" placeholder="${p.has_key ? "Saved key " + esc(p.api_key) + " (leave empty to keep)" : "API key"}">
+      <button class="btn p-test" type="button">Test</button><button class="btn p-del" type="button" aria-label="Remove">✕</button>`;
+    row.querySelector(".p-del").onclick = () => row.remove();
+    row.querySelector(".p-test").onclick = async (e) => {
+      const name = row.querySelector(".p-name").value.trim(); e.target.textContent = "…";
+      try { const r = await admin(`/v1/app/providers/${encodeURIComponent(name)}/test`, {method: "POST"});
+        e.target.innerHTML = r.ok ? '<span class="ok">Works</span>' : `<span class="bad">${esc({quota: "Out of quota", rate_limit: "Rate limited", auth: "Bad key", server: "Unreachable", bad_request: "Rejected"}[r.problem] || r.problem)}</span>`;
+      } catch (err) { e.target.innerHTML = `<span class="bad">Save first</span>`; } };
+    $("providers").appendChild(row);
+  }
+  async function loadSettings() {
+    const s = await admin("/v1/app/settings");
+    const d = s.data; $("data-now").textContent = {demo: "Demo data (fictional companies)", csv: "Your imported CSV files", sqlite: `SQLite: ${d.sqlite_path}`, postgres: `PostgreSQL: ${d.postgres_url}`}[d.kind] + ` · ${s.companies} companies · latest ${s.latest_date}`;
+    showChips(d.kind, s.example_company);
+    $("providers").innerHTML = ""; s.providers.forEach(providerRow);
+    $("status").innerHTML = `<span class="dot"></span>${s.companies} companies · data to ${esc(s.latest_date)}<br>AI: ${s.llm === "on" ? s.providers.map((p) => esc(p.name)).join(" → ") : "offline mode (no key needed)"}`;
+  }
+  $("add").onclick = () => providerRow();
+  $("preset").onchange = (e) => { const name = e.target.value; if (PRESETS[name]) providerRow({name: name.split(" ")[0], ...PRESETS[name]}); e.target.value = ""; };
+  $("save").onclick = async () => {
+    const body = [...document.querySelectorAll(".prov")].map((r) => ({name: r.querySelector(".p-name").value.trim(), base_url: r.querySelector(".p-url").value.trim(),
+      model: r.querySelector(".p-model").value.trim(), api_key: r.querySelector(".p-key").value}));
+    try { await admin("/v1/app/providers", {method: "PUT", body: JSON.stringify(body)}); $("prov-msg").innerHTML = '<span class="ok">Saved</span>'; await loadSettings(); }
+    catch (e) { $("prov-msg").innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+  };
+  const setData = async (payload) => { $("data-msg").textContent = "Connecting…";
+    try { await admin("/v1/app/data", {method: "POST", body: JSON.stringify(payload)}); $("data-msg").innerHTML = '<span class="ok">Connected</span>'; $("pg").value = ""; await loadSettings(); }
+    catch (e) { $("data-msg").innerHTML = `<span class="bad">${esc(e.message)}</span>`; } };
+  $("use-demo").onclick = () => setData({kind: "demo"});
+  $("use-sqlite").onclick = () => setData({kind: "sqlite", sqlite_path: $("sqlite").value.trim()});
+  $("use-pg").onclick = () => setData({kind: "postgres", postgres_url: $("pg").value.trim()});
+  $("import").onclick = async () => {
+    const read = (el) => el.files[0] ? el.files[0].text() : Promise.resolve(null);
+    const [companies, daily_prices, fundamentals] = await Promise.all([read($("f-companies")), read($("f-prices")), read($("f-fund"))]);
+    if (!companies || !daily_prices) { $("data-msg").innerHTML = '<span class="bad">Choose companies.csv and daily_prices.csv</span>'; return; }
+    $("data-msg").textContent = "Importing and computing indicators…";
+    try { const r = await admin("/v1/app/import-csv", {method: "POST", body: JSON.stringify({companies, daily_prices, fundamentals})});
+      $("data-msg").innerHTML = `<span class="ok">Imported ${r.imported.companies} companies, ${r.imported.prices} prices, ${r.imported.signals} signals</span>`; await loadSettings(); }
+    catch (e) { $("data-msg").innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+  };
+  loadSettings();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/app/sw.js", {scope: "/app"}).catch(() => {});
+</script>
+</body>
+</html>

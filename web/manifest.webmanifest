@@ -1,0 +1,11 @@
+{
+  "name": "Bilingual Market Assistant",
+  "short_name": "Market Assistant",
+  "description": "Arabic + English market-data assistant that runs on your computer.",
+  "start_url": "/app",
+  "scope": "/app",
+  "display": "standalone",
+  "background_color": "#F7F4EE",
+  "theme_color": "#F7F4EE",
+  "icons": [{"src": "/app/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]
+}
