@@ -15,6 +15,8 @@ import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
 
+from market_assistant.db.builder import SCHEMA, indicators_and_signals
+
 SEED = 2026
 END_DATE = date(2026, 10, 23)
 TRADING_DAYS = 320  # enough history for a 200-day average and a 52-week window
@@ -81,78 +83,6 @@ def simulate(rng: random.Random, start: float, drift: float, vol: float, n: int)
     return rows
 
 
-def rsi(closes: list[float], period: int = 14) -> list[float | None]:
-    """Wilder's RSI."""
-    out: list[float | None] = [None] * len(closes)
-    gains = losses = 0.0
-    for i in range(1, len(closes)):
-        change = closes[i] - closes[i - 1]
-        gain, loss = max(change, 0), max(-change, 0)
-        if i <= period:
-            gains += gain
-            losses += loss
-            if i == period:
-                gains, losses = gains / period, losses / period
-            else:
-                continue
-        else:
-            gains = (gains * (period - 1) + gain) / period
-            losses = (losses * (period - 1) + loss) / period
-        out[i] = 100.0 if losses == 0 else round(100 - 100 / (1 + gains / losses), 2)
-    return out
-
-
-def moving_average(values: list[float], window: int) -> list[float | None]:
-    out: list[float | None] = [None] * len(values)
-    total = 0.0
-    for i, v in enumerate(values):
-        total += v
-        if i >= window:
-            total -= values[i - window]
-        if i >= window - 1:
-            out[i] = round(total / window, 2)
-    return out
-
-
-def indicators_and_signals(ticker: str, days: list[date], prices: list[tuple]):
-    closes = [p[3] for p in prices]
-    volumes = [p[4] for p in prices]
-    ma50, ma200, rsi14 = moving_average(closes, 50), moving_average(closes, 200), rsi(closes)
-    avg_vol20 = moving_average([float(v) for v in volumes], 20)
-
-    indicator_rows, signal_rows = [], []
-    for i, d in enumerate(days):
-        window = closes[max(0, i - 251): i + 1]
-        high_52w, low_52w = max(window), min(window)
-        indicator_rows.append((ticker, d.isoformat(), ma50[i], ma200[i], rsi14[i], high_52w, low_52w,
-                               int(avg_vol20[i]) if avg_vol20[i] else None))
-        if i < 120:  # need some history before calling a signal
-            continue
-
-        def add(kind: str, direction: str, level: float | None, note: str, day: str = d.isoformat()) -> None:
-            signal_rows.append((ticker, day, kind, direction, level, note))
-
-        prev_high, prev_low = max(closes[max(0, i - 252): i]), min(closes[max(0, i - 252): i])
-        if closes[i] > prev_high:
-            add("52w_high_breakout", "bullish", prev_high, f"closed {closes[i]} above the 52-week high {prev_high}")
-        if closes[i] < prev_low:
-            add("52w_low_breakdown", "bearish", prev_low, f"closed {closes[i]} below the 52-week low {prev_low}")
-        if ma50[i] and ma200[i] and ma50[i - 1] and ma200[i - 1]:
-            if ma50[i - 1] <= ma200[i - 1] and ma50[i] > ma200[i]:
-                add("golden_cross", "bullish", ma200[i], "50-day average crossed above the 200-day average")
-            if ma50[i - 1] >= ma200[i - 1] and ma50[i] < ma200[i]:
-                add("death_cross", "bearish", ma200[i], "50-day average crossed below the 200-day average")
-        if rsi14[i] is not None and rsi14[i - 1] is not None:
-            if rsi14[i - 1] >= 30 > rsi14[i]:
-                add("rsi_oversold", "bullish", rsi14[i], "RSI(14) fell below 30")
-            if rsi14[i - 1] <= 70 < rsi14[i]:
-                add("rsi_overbought", "bearish", rsi14[i], "RSI(14) rose above 70")
-        if avg_vol20[i - 1] and volumes[i] > 2.5 * avg_vol20[i - 1]:
-            direction = "bullish" if closes[i] >= closes[i - 1] else "bearish"
-            add("volume_spike", direction, float(volumes[i]), "volume above 2.5x its 20-day average")
-    return indicator_rows, signal_rows
-
-
 def fundamentals(rng: random.Random, ticker: str, last_price: float, shares_m: float) -> list[tuple]:
     """Three fiscal years of revenue, net income and EPS that fit the share price."""
     pe = rng.uniform(9, 32)
@@ -165,33 +95,6 @@ def fundamentals(rng: random.Random, ticker: str, last_price: float, shares_m: f
         net_income = revenue * (margin + rng.uniform(-0.02, 0.02))
         rows.append((ticker, year, round(revenue, 1), round(net_income, 1), round(net_income / shares_m, 2)))
     return rows
-
-
-SCHEMA = """
-CREATE TABLE companies (
-    ticker TEXT PRIMARY KEY, name_en TEXT NOT NULL, name_ar TEXT NOT NULL, sector TEXT NOT NULL,
-    country TEXT NOT NULL, exchange TEXT NOT NULL, currency TEXT NOT NULL, shares_outstanding_m REAL NOT NULL
-);
-CREATE TABLE daily_prices (
-    ticker TEXT NOT NULL REFERENCES companies(ticker), date TEXT NOT NULL,
-    open REAL, high REAL, low REAL, close REAL NOT NULL, volume INTEGER NOT NULL,
-    PRIMARY KEY (ticker, date)
-);
-CREATE TABLE indicators (
-    ticker TEXT NOT NULL, date TEXT NOT NULL, ma50 REAL, ma200 REAL, rsi14 REAL,
-    high_52w REAL, low_52w REAL, avg_volume_20d INTEGER, PRIMARY KEY (ticker, date)
-);
-CREATE TABLE signals (
-    ticker TEXT NOT NULL, date TEXT NOT NULL, signal_type TEXT NOT NULL,
-    direction TEXT NOT NULL, level REAL, note TEXT
-);
-CREATE TABLE fundamentals (
-    ticker TEXT NOT NULL, fiscal_year INTEGER NOT NULL, revenue_m REAL, net_income_m REAL, eps REAL,
-    PRIMARY KEY (ticker, fiscal_year)
-);
-CREATE INDEX idx_prices_date ON daily_prices(date);
-CREATE INDEX idx_signals_date ON signals(date);
-"""
 
 
 def build(out: Path) -> Path:
