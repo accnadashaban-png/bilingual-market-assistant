@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
 import uuid
@@ -26,6 +27,8 @@ from market_assistant.agent.tools import TOOLS, call_tool, tool_specs
 from market_assistant.core.errors import AssistantError, RateLimitedError
 from market_assistant.core.observability import request_id, setup_logging
 from market_assistant.core.settings import Settings, get_settings
+
+logger = logging.getLogger("market_assistant")
 
 WEB_DIR = Path(__file__).resolve().parents[2] / "web"
 
@@ -107,7 +110,10 @@ def create_app(settings: Settings | None = None, assistant: Assistant | None = N
             try:
                 for event in bot.stream(body.message, body.session_id):
                     yield f"event: {event['event']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
-            except AssistantError as exc:
+            except Exception as exc:  # noqa: BLE001 - the stream must always end with a message, never silently
+                if not isinstance(exc, AssistantError):
+                    logger.exception("stream failed")
+                    exc = AssistantError()
                 payload = {"event": "error", "code": exc.code, "message": exc.user_message(detect_language(body.message))}
                 yield f"event: error\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
@@ -131,7 +137,7 @@ def create_app(settings: Settings | None = None, assistant: Assistant | None = N
         try:
             result = call_tool(bot.db, name, args)
         except ValidationError as exc:
-            raise HTTPException(422, detail={"code": "bad_args", "message": exc.errors(include_url=False)}) from exc
+            raise HTTPException(422, detail={"code": "bad_args", "message": exc.errors(include_url=False, include_context=False)}) from exc
         except AssistantError as exc:
             raise HTTPException(400, detail={"code": exc.code, "message": exc.message_en}) from exc
         return {"tool": result.tool, "args": result.args, "rows": result.rows}
