@@ -14,7 +14,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from market_assistant.core.errors import NotFoundError
+from market_assistant.core.errors import NotEnoughHistoryError, NotFoundError
 from market_assistant.db.database import BaseDatabase as Database
 from market_assistant.db.sql_safety import validate_select
 
@@ -47,10 +47,13 @@ def _ticker(db: Database, ticker: str) -> str:
 def base_date(db: Database, period: str) -> str:
     """The trading day the period's change is measured from."""
     if period == "ytd":
-        return str(db.scalar("SELECT MAX(date) FROM daily_prices WHERE date < :y",
-                             {"y": db.latest_date[:4] + "-01-01"}))
-    return str(db.scalar("SELECT date FROM (SELECT DISTINCT date FROM daily_prices ORDER BY date DESC) AS d "
-                         "LIMIT 1 OFFSET :n", {"n": PERIOD_OFFSETS[period]}))
+        found = db.scalar("SELECT MAX(date) FROM daily_prices WHERE date < :y", {"y": db.latest_date[:4] + "-01-01"})
+    else:
+        found = db.scalar("SELECT date FROM (SELECT DISTINCT date FROM daily_prices ORDER BY date DESC) AS d "
+                          "LIMIT 1 OFFSET :n", {"n": PERIOD_OFFSETS[period]})
+    if found is None:  # never measure a "1 year" change from a shorter history
+        raise NotEnoughHistoryError(period)
+    return str(found)
 
 
 PERFORMANCE_SQL = """
@@ -221,10 +224,12 @@ def company_profile(db: Database, a: TickerArgs) -> ToolResult:
     sql = """
     SELECT c.ticker, c.name_en, c.name_ar, c.sector, c.country, c.exchange, c.currency,
            ROUND(p.close * c.shares_outstanding_m, 0) AS market_cap_m,
-           f.revenue_m, f.net_income_m, f.eps, ROUND(p.close / f.eps, 1) AS pe_ratio
+           f.fiscal_year, f.revenue_m, f.net_income_m, f.eps,
+           CASE WHEN f.eps > 0 THEN ROUND(p.close / f.eps, 1) END AS pe_ratio
     FROM companies c
     JOIN daily_prices p ON p.ticker = c.ticker AND p.date = :last
-    LEFT JOIN fundamentals f ON f.ticker = c.ticker AND f.fiscal_year = 2025
+    LEFT JOIN fundamentals f ON f.ticker = c.ticker
+         AND f.fiscal_year = (SELECT MAX(fiscal_year) FROM fundamentals WHERE ticker = c.ticker)
     WHERE c.ticker = :ticker"""
     params = {"ticker": _ticker(db, a.ticker), "last": db.latest_date}
     return ToolResult("company_profile", a.model_dump(), db.fetch(sql, params), sql)
@@ -321,6 +326,8 @@ def risk_metrics(db: Database, a: RiskArgs) -> ToolResult:
     SELECT date, AVG(ret) AS mret FROM r WHERE ret IS NOT NULL GROUP BY date ORDER BY date"""
     market = [float(r["mret"]) for r in db.fetch(market_sql, {"t": ticker, "start": start}, limit=400)]
     returns = [b / a_ - 1 for a_, b in zip(closes, closes[1:], strict=False)]
+    if len(returns) < 2:
+        raise NotEnoughHistoryError(a.period)
     peak, max_dd = closes[0], 0.0
     for c in closes:
         peak = max(peak, c)

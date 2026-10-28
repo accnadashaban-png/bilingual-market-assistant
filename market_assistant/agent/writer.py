@@ -222,10 +222,11 @@ class TemplateWriter:
             if ar:
                 return (f"**{name(r, lang)}** ({r['ticker']}) شركة في قطاع {r['sector']}، مدرجة في {r['exchange']}. "
                         f"قيمتها السوقية حوالي **{money_m(r['market_cap_m'], lang)} {r['currency']}**، "
-                        f"وإيراداتها في 2025 كانت {money_m(r['revenue_m'], lang)} وصافي الربح {money_m(r['net_income_m'], lang)} "
+                        f"وإيراداتها في {r['fiscal_year']} كانت {money_m(r['revenue_m'], lang)} "
+                        f"وصافي الربح {money_m(r['net_income_m'], lang)} "
                         f"(ربحية السهم {price(r['eps'])}، ومكرر الربحية {r['pe_ratio']}).")
             return (f"**{name(r, lang)}** ({r['ticker']}) is a {r['sector']} company listed on {r['exchange']}. "
-                    f"Its market cap is about **{money_m(r['market_cap_m'], lang)} {r['currency']}**. In 2025 it had "
+                    f"Its market cap is about **{money_m(r['market_cap_m'], lang)} {r['currency']}**. In {r['fiscal_year']} it had "
                     f"revenue of {money_m(r['revenue_m'], lang)} and net income of {money_m(r['net_income_m'], lang)} "
                     f"(EPS {price(r['eps'])}, P/E {r['pe_ratio']}).")
 

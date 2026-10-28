@@ -127,6 +127,10 @@ class Assistant:
             except (ValidationError, KeyError) as exc:
                 TOOL_CALLS.labels(c.tool, "bad_args").inc()
                 return {"results": results, "error": PlanningError(str(exc))}
+            except Exception:  # noqa: BLE001 - a tool bug becomes a polite error, not an empty answer
+                logger.exception("tool %s failed", c.tool)
+                TOOL_CALLS.labels(c.tool, "internal_error").inc()
+                return {"results": results, "error": AssistantError()}
         return {"results": results}
 
     def _run_tool(self, question: str, tool: str, args: dict[str, Any]) -> ToolResult:
