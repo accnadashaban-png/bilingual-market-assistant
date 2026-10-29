@@ -2,164 +2,287 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="app-token" content="__APP_TOKEN__">
-<meta name="theme-color" content="#F7F4EE" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121917" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/app/manifest.webmanifest">
 <link rel="icon" href="/app/icon.svg" type="image/svg+xml">
 <title>Market Assistant</title>
+<script>
+  // apply the saved theme before the first paint, so the page never flashes the wrong colors
+  try { const t = localStorage.getItem("ma-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <style>
   :root {
-    --bg:#F7F4EE; --side:#F1EDE4; --panel:#FFFFFF; --panel-2:#FBF9F5; --fg:#1E2A28; --muted:#5B6763; --faint:#8A948F;
-    --line:#E6E0D5; --accent:#1F5A4F; --accent-hover:#174840; --soft:#E4EEE9; --sand:#EFE6D8; --err:#A12C2C; --errbg:#FBEAEA;
-    --shadow:0 1px 2px rgba(30,42,40,.04), 0 8px 24px rgba(30,42,40,.06);
-    --font:"Inter", "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+    --bg:#FAF9F5; --side:#F3F1EA; --panel:#FFFFFF; --panel-2:#F7F5EF; --raise:#EFEDE5;
+    --fg:#29261B; --muted:#6B6658; --faint:#9A9484; --line:#E6E2D6;
+    --accent:#C96442; --accent-hover:#B4553A; --on-accent:#FFFFFF; --soft:#F6E8E0; --me:#F0EEE6;
+    --up:#3C7A4E; --down:#B4432F; --chart-2:#5B7FA6; --chart-3:#8A6FB0; --chart-4:#B08A3E; --chart-5:#3E8F8A; --chart-6:#9A5C7A;
+    --shadow:0 1px 2px rgba(41,38,27,.04), 0 6px 20px rgba(41,38,27,.06);
+    --sans:"Segoe UI Variable Text", "Segoe UI", "IBM Plex Sans Arabic", system-ui, -apple-system, Tahoma, sans-serif;
+    --serif:"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    color-scheme: light;
   }
-  @media (prefers-color-scheme: dark) { :root {
-    --bg:#121917; --side:#0F1513; --panel:#1A2421; --panel-2:#17201D; --fg:#E6ECE9; --muted:#9AA8A3; --faint:#74827D;
-    --line:#2A3632; --accent:#7CC4AE; --accent-hover:#95D3BF; --soft:#1F3530; --sand:#2A2F26; --err:#F4A3A3; --errbg:#3A1E1E;
-    --shadow:0 1px 2px rgba(0,0,0,.2), 0 8px 24px rgba(0,0,0,.25);
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#262624; --side:#1F1E1D; --panel:#30302E; --panel-2:#2B2A28; --raise:#3A3936;
+    --fg:#ECEAE3; --muted:#B5B1A6; --faint:#8A867C; --line:#3D3C38;
+    --accent:#D97757; --accent-hover:#E38B6D; --on-accent:#1F1E1D; --soft:#3B2D26; --me:#393835;
+    --up:#7DC48F; --down:#F08C76; --chart-2:#8FB1D9; --chart-3:#B9A1DE; --chart-4:#D9B568; --chart-5:#6EC2BC; --chart-6:#D69AB8;
+    --shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
   } }
+  :root[data-theme="dark"] {
+    --bg:#262624; --side:#1F1E1D; --panel:#30302E; --panel-2:#2B2A28; --raise:#3A3936;
+    --fg:#ECEAE3; --muted:#B5B1A6; --faint:#8A867C; --line:#3D3C38;
+    --accent:#D97757; --accent-hover:#E38B6D; --on-accent:#1F1E1D; --soft:#3B2D26; --me:#393835;
+    --up:#7DC48F; --down:#F08C76; --chart-2:#8FB1D9; --chart-3:#B9A1DE; --chart-4:#D9B568; --chart-5:#6EC2BC; --chart-6:#D69AB8;
+    --shadow:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
   * { box-sizing:border-box; } html, body { height:100%; } [hidden] { display:none !important; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.65 var(--font); display:flex; -webkit-font-smoothing:antialiased; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15.5px/1.7 var(--sans); display:flex; -webkit-font-smoothing:antialiased; overflow:hidden; }
   button { font:inherit; color:inherit; }
   :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:8px; }
   svg.i { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .ghost { border:0; background:none; cursor:pointer; border-radius:8px; padding:6px; color:var(--muted); display:inline-grid; place-items:center; }
+  .ghost:hover { background:var(--raise); color:var(--fg); }
 
-  /* sidebar */
-  nav { width:236px; flex:none; background:var(--side); border-inline-end:1px solid var(--line); padding:16px 12px; display:flex; flex-direction:column; gap:2px; }
-  .brand { display:flex; align-items:center; gap:10px; font-weight:650; letter-spacing:-.01em; margin:2px 8px 18px; }
-  .brand img { width:30px; height:30px; }
-  .new { display:flex; align-items:center; gap:8px; border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:9px 12px; cursor:pointer; margin-bottom:12px; font-weight:550; box-shadow:0 1px 2px rgba(30,42,40,.04); }
-  .new:hover { border-color:var(--accent); }
-  nav button[data-s] { display:flex; align-items:center; gap:10px; text-align:start; border:0; background:none; padding:9px 12px; border-radius:10px; cursor:pointer; color:var(--muted); }
-  nav button[data-s]:hover { background:color-mix(in srgb, var(--fg) 5%, transparent); color:var(--fg); }
-  nav button[data-s].on { background:var(--panel); color:var(--fg); font-weight:600; box-shadow:0 1px 2px rgba(30,42,40,.05); }
-  .status { margin-top:auto; font-size:12.5px; color:var(--muted); padding:12px; border-radius:12px; background:color-mix(in srgb, var(--fg) 3%, transparent); line-height:1.5; }
-  .status .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#2E9C74; margin-inline-end:6px; vertical-align:1px; }
+  /* ---------- sidebar ---------- */
+  nav { width:272px; flex:none; background:var(--side); border-inline-end:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  .top { padding:14px 12px 8px; }
+  .brand { display:flex; align-items:center; gap:10px; font:600 17px/1.2 var(--serif); letter-spacing:-.01em; margin:2px 6px 14px; }
+  .brand svg { width:28px; height:28px; }
+  .new { width:100%; display:flex; align-items:center; gap:9px; border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:9px 12px; cursor:pointer; font-weight:550; box-shadow:0 1px 2px rgba(41,38,27,.04); }
+  .new:hover { border-color:var(--accent); } .new svg { color:var(--accent); }
+  .search { margin-top:10px; display:flex; align-items:center; gap:8px; padding:0 10px; border-radius:10px; background:color-mix(in srgb, var(--fg) 5%, transparent); color:var(--muted); }
+  .search input { flex:1; border:0; outline:0; background:transparent; color:var(--fg); font:inherit; font-size:14px; padding:8px 0; min-width:0; }
+  .list { flex:1; overflow-y:auto; padding:4px 8px 8px; min-height:0; }
+  .group { font-size:12px; font-weight:600; color:var(--faint); margin:14px 8px 4px; letter-spacing:.02em; }
+  .conv { display:flex; align-items:center; gap:4px; border-radius:10px; padding:2px 2px 2px 10px; cursor:pointer; color:var(--muted); position:relative; }
+  .conv:hover, .conv.on { background:var(--raise); color:var(--fg); }
+  .conv .t { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:14px; padding:6px 0; }
+  .conv .ghost { opacity:0; padding:5px; } .conv:hover .ghost, .conv.on .ghost, .conv .ghost:focus-visible { opacity:1; }
+  .conv input { flex:1; font:inherit; font-size:14px; padding:4px 6px; border:1px solid var(--accent); border-radius:6px; background:var(--panel); color:var(--fg); }
+  .menu { position:absolute; inset-inline-end:4px; top:34px; z-index:5; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:5px; min-width:150px; }
+  .menu button { display:flex; width:100%; gap:9px; align-items:center; border:0; background:none; padding:7px 10px; border-radius:8px; cursor:pointer; font-size:14px; text-align:start; }
+  .menu button:hover { background:var(--raise); } .menu .del { color:var(--down); }
+  .empty-list { color:var(--faint); font-size:13.5px; padding:10px; }
+  .foot { border-top:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:2px; }
+  .foot button[data-s] { display:flex; align-items:center; gap:10px; text-align:start; border:0; background:none; padding:8px 10px; border-radius:10px; cursor:pointer; color:var(--muted); font-size:14px; }
+  .foot button[data-s]:hover, .foot button[data-s].on { background:var(--raise); color:var(--fg); }
+  .live { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); padding:8px 10px; line-height:1.4; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--up); flex:none; box-shadow:0 0 0 0 color-mix(in srgb, var(--up) 60%, transparent); animation:beat 2.4s infinite; }
+  .dot.off { background:var(--faint); animation:none; }
+  @keyframes beat { 0% { box-shadow:0 0 0 0 color-mix(in srgb, var(--up) 55%, transparent); } 70% { box-shadow:0 0 0 7px transparent; } 100% { box-shadow:0 0 0 0 transparent; } }
+  .theme { display:flex; gap:2px; background:color-mix(in srgb, var(--fg) 5%, transparent); border-radius:10px; padding:3px; margin:4px 6px 2px; }
+  .theme button { flex:1; border:0; background:none; border-radius:8px; padding:5px; cursor:pointer; color:var(--muted); display:grid; place-items:center; }
+  .theme button.on { background:var(--panel); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.08); }
 
+  /* ---------- main ---------- */
   main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .bar { display:none; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--line); background:var(--bg); }
+  .bar b { font:600 16px var(--serif); flex:1; }
   section { display:none; flex:1; min-height:0; } section.on { display:flex; flex-direction:column; }
-
-  /* conversation */
-  .col { width:100%; max-width:760px; margin:0 auto; padding:0 24px; }
+  .col { width:100%; max-width:780px; margin:0 auto; padding:0 24px; }
   #scroll { flex:1; overflow-y:auto; }
-  #log { display:flex; flex-direction:column; gap:22px; padding-top:32px; padding-bottom:24px; }
-  .turn-me { align-self:flex-end; max-width:80%; background:var(--sand); border-radius:18px; padding:10px 16px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  #log { display:flex; flex-direction:column; gap:26px; padding-top:30px; padding-bottom:20px; }
+  .turn-me { align-self:flex-end; max-width:82%; background:var(--me); border-radius:18px; padding:10px 16px; white-space:pre-wrap; overflow-wrap:anywhere; }
   .turn-bot { display:flex; gap:14px; align-items:flex-start; }
-  .turn-bot .av { width:28px; height:28px; flex:none; margin-top:1px; }
+  .turn-bot > svg { width:26px; height:26px; flex:none; margin-top:3px; }
   .answer { flex:1; min-width:0; overflow-wrap:anywhere; }
   .answer p { margin:0 0 10px; } .answer p:last-child { margin-bottom:0; } .answer ul { margin:4px 0 10px; padding-inline-start:20px; } .answer li { margin:3px 0; }
   .answer strong { font-weight:650; }
-  .answer.error { background:var(--errbg); color:var(--err); border-radius:12px; padding:10px 14px; }
-  .tw { overflow-x:auto; margin:10px 0; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
-  table { border-collapse:collapse; font-size:13.5px; width:100%; font-variant-numeric:tabular-nums; }
+  .answer.error { background:color-mix(in srgb, var(--down) 12%, transparent); color:var(--down); border-radius:12px; padding:10px 14px; }
+  .tw { overflow-x:auto; margin:12px 0; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+  table { border-collapse:collapse; font-size:14px; width:100%; font-variant-numeric:tabular-nums; }
   th { background:var(--panel-2); font-weight:600; color:var(--muted); font-size:12.5px; }
   th, td { padding:8px 12px; text-align:start; white-space:nowrap; border-bottom:1px solid var(--line); } tr:last-child td { border-bottom:0; }
-  details { margin-top:10px; font-size:12.5px; color:var(--faint); } summary { cursor:pointer; width:max-content; } summary:hover { color:var(--muted); }
-  details code { display:block; margin-top:6px; padding:10px 12px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line); white-space:pre-wrap; direction:ltr; text-align:left; font:12px/1.55 ui-monospace, Consolas, monospace; color:var(--muted); }
+  td.pos { color:var(--up); } td.neg { color:var(--down); }
   .cursor::after { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent); margin-inline-start:4px; animation:pulse 1s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity:.25; transform:scale(.7); } }
+  .chart { margin:14px 0 6px; border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:12px 14px 8px; }
+  .chart .head { display:flex; justify-content:space-between; gap:10px; font-size:12.5px; color:var(--muted); margin-bottom:4px; flex-wrap:wrap; }
+  .chart .keys { display:flex; gap:12px; flex-wrap:wrap; } .chart .keys span { display:inline-flex; align-items:center; gap:5px; }
+  .chart .keys i { width:10px; height:3px; border-radius:2px; display:inline-block; }
+  .chart svg { width:100%; height:180px; display:block; overflow:visible; }
+  .chart .tip { font-size:12px; color:var(--muted); min-height:18px; font-variant-numeric:tabular-nums; }
+  .actions { display:flex; gap:2px; margin-top:6px; flex-wrap:wrap; align-items:center; }
+  .actions .ghost { padding:5px 7px; font-size:12.5px; gap:5px; display:inline-flex; align-items:center; }
+  .actions svg.i { width:15px; height:15px; }
+  details.how { font-size:12.5px; color:var(--faint); } details.how summary { cursor:pointer; list-style:none; padding:5px 7px; border-radius:8px; }
+  details.how summary:hover { background:var(--raise); color:var(--fg); }
+  details.how code { display:block; margin:4px 0 0; padding:10px 12px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line); white-space:pre-wrap; direction:ltr; text-align:left; font:12px/1.55 ui-monospace, Consolas, monospace; color:var(--muted); }
+  .follow { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .follow button { border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:6px 13px; font-size:13.5px; cursor:pointer; color:var(--fg); }
+  .follow button:hover { border-color:var(--accent); color:var(--accent); }
 
-  /* empty state */
-  #empty { flex:1; display:flex; flex-direction:column; justify-content:center; padding-bottom:40px; }
-  #empty .mark { width:44px; height:44px; margin-bottom:18px; }
-  #empty h1 { font-size:30px; line-height:1.2; letter-spacing:-.02em; font-weight:600; margin:0 0 6px; }
-  #empty p { color:var(--muted); margin:0 0 26px; }
+  #empty { flex:1; display:flex; flex-direction:column; justify-content:center; padding-top:20px; padding-bottom:40px; }
+  #empty .mark { width:42px; height:42px; margin-bottom:16px; }
+  #empty h1 { font:500 32px/1.2 var(--serif); letter-spacing:-.015em; margin:0 0 8px; }
+  #empty p { color:var(--muted); margin:0 0 24px; }
   .chips { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
-  .chips button { text-align:start; border:1px solid var(--line); background:var(--panel); border-radius:14px; padding:12px 14px; cursor:pointer; color:var(--fg); box-shadow:0 1px 2px rgba(30,42,40,.03); }
+  .chips button { text-align:start; border:1px solid var(--line); background:var(--panel); border-radius:14px; padding:12px 14px; cursor:pointer; color:var(--fg); box-shadow:0 1px 2px rgba(41,38,27,.03); }
   .chips button:hover { border-color:var(--accent); }
+  .chips small { display:block; color:var(--faint); font-size:12px; }
 
-  /* composer */
-  .composer { padding-bottom:14px; }
+  .composer { padding-bottom:max(14px, env(safe-area-inset-bottom)); padding-top:4px; }
   form.ask { display:flex; align-items:flex-end; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:8px 8px 8px 18px; box-shadow:var(--shadow); }
   form.ask:focus-within { border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); }
-  form.ask input { flex:1; border:0; outline:0; background:transparent; color:var(--fg); font:inherit; padding:9px 0; min-width:0; }
-  .send { width:38px; height:38px; flex:none; border:0; border-radius:12px; background:var(--accent); color:var(--bg); display:grid; place-items:center; cursor:pointer; }
+  form.ask textarea { flex:1; border:0; outline:0; background:transparent; color:var(--fg); font:inherit; padding:8px 0; min-width:0; resize:none; max-height:160px; line-height:1.5; }
+  .send { width:38px; height:38px; flex:none; border:0; border-radius:12px; background:var(--accent); color:var(--on-accent); display:grid; place-items:center; cursor:pointer; }
   .send:hover { background:var(--accent-hover); } .send:disabled { opacity:.35; cursor:default; }
   .fine { text-align:center; font-size:12px; color:var(--faint); margin:8px 0 0; }
+  .toast { position:fixed; bottom:96px; left:50%; transform:translateX(-50%); background:var(--fg); color:var(--bg); padding:8px 14px; border-radius:999px; font-size:13.5px; box-shadow:var(--shadow); z-index:20; }
 
-  /* settings pages */
-  .page { overflow-y:auto; flex:1; }
-  .page .col { padding-top:36px; padding-bottom:36px; }
-  .page h1 { font-size:24px; letter-spacing:-.02em; font-weight:600; margin:0 0 4px; }
+  /* ---------- pages ---------- */
+  .page { overflow-y:auto; flex:1; } .page .col { padding-top:34px; padding-bottom:40px; }
+  .page h1 { font:500 28px/1.2 var(--serif); letter-spacing:-.015em; margin:0 0 6px; }
   .lead { color:var(--muted); margin:0 0 22px; }
   .card { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:20px 22px; margin-bottom:16px; box-shadow:var(--shadow); }
-  h2 { font-size:16px; font-weight:650; margin:0 0 2px; } .muted { color:var(--muted); font-size:13.5px; margin:0 0 14px; }
-  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; padding:8px 0; } .row label { min-width:150px; color:var(--muted); font-size:13.5px; }
+  h2 { font-size:16px; font-weight:650; margin:0 0 2px; } .muted { color:var(--muted); font-size:14px; margin:0 0 14px; }
+  .explain { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; margin-top:10px; }
+  .explain div { background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:12px 14px; font-size:13.5px; color:var(--muted); }
+  .explain b { display:block; color:var(--fg); font-size:14px; margin-bottom:2px; }
+  .stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin:10px 0 6px; }
+  .stat { background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:10px 14px; }
+  .stat small { display:block; color:var(--faint); font-size:12px; } .stat b { font-size:19px; font-variant-numeric:tabular-nums; font-weight:600; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; padding:9px 0; } .row label { min-width:160px; color:var(--muted); font-size:14px; }
   .row + .row { border-top:1px solid color-mix(in srgb, var(--line) 60%, transparent); }
-  input, select { padding:9px 12px; border-radius:10px; border:1px solid var(--line); background:var(--panel-2); color:var(--fg); font:inherit; font-size:14px; }
+  input, select { padding:9px 12px; border-radius:10px; border:1px solid var(--line); background:var(--panel-2); color:var(--fg); font:inherit; font-size:14px; max-width:100%; }
   input:focus, select:focus { outline:0; border-color:var(--accent); }
   input[type=file] { padding:6px; font-size:13px; }
   .btn { border:1px solid var(--line); background:var(--panel); border-radius:10px; padding:8px 14px; font-size:14px; cursor:pointer; }
   .btn:hover { border-color:var(--accent); }
-  .primary { border:0; border-radius:10px; background:var(--accent); color:var(--bg); padding:9px 16px; font-weight:600; font-size:14px; cursor:pointer; }
+  .primary { border:0; border-radius:10px; background:var(--accent); color:var(--on-accent); padding:9px 16px; font-weight:600; font-size:14px; cursor:pointer; }
   .primary:hover { background:var(--accent-hover); } .primary:disabled { opacity:.5; }
+  .switch { display:inline-flex; align-items:center; gap:10px; cursor:pointer; font-size:14px; }
+  .switch input { appearance:none; width:40px; height:23px; border-radius:999px; background:var(--raise); border:1px solid var(--line); position:relative; cursor:pointer; padding:0; }
+  .switch input::after { content:""; position:absolute; top:2px; left:2px; width:17px; height:17px; border-radius:50%; background:var(--panel); box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .15s; }
+  .switch input:checked { background:var(--accent); border-color:var(--accent); } .switch input:checked::after { transform:translateX(17px); }
   .prov { display:grid; grid-template-columns:1fr 1.6fr 1.2fr 1.3fr auto auto; gap:8px; align-items:center; margin:8px 0; }
-  @media (max-width:900px) { .prov { grid-template-columns:1fr 1fr; } nav { width:200px; } .chips { grid-template-columns:1fr; } }
-  .note { font-size:12.5px; color:var(--muted); } .ok { color:var(--accent); font-weight:600; } .bad { color:var(--err); font-weight:600; }
-  .lock { display:flex; gap:10px; align-items:flex-start; background:var(--soft); color:var(--accent); border-radius:14px; padding:12px 14px; font-size:13.5px; margin-bottom:16px; }
+  .note { font-size:13px; color:var(--muted); } .ok { color:var(--up); font-weight:600; } .bad { color:var(--down); font-weight:600; }
+  .lock { display:flex; gap:10px; align-items:flex-start; background:var(--soft); color:var(--fg); border-radius:14px; padding:12px 14px; font-size:13.5px; margin-bottom:16px; }
+  .lock svg { color:var(--accent); }
+  code.k { font:12.5px ui-monospace, Consolas, monospace; background:var(--panel-2); border:1px solid var(--line); padding:1px 6px; border-radius:6px; }
+
+  /* ---------- phones ---------- */
+  .scrim { display:none; }
+  @media (max-width:860px) {
+    nav { position:fixed; inset-block:0; inset-inline-start:0; z-index:30; width:min(86vw, 300px); transform:translateX(-100%); transition:transform .2s ease; box-shadow:var(--shadow); }
+    [dir="rtl"] nav { transform:translateX(100%); }
+    body.drawer nav { transform:none; }
+    body.drawer .scrim { display:block; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:25; }
+    .bar { display:flex; }
+    .col { padding:0 16px; }
+    .chips, .explain { grid-template-columns:1fr; } .stats { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .prov { grid-template-columns:1fr 1fr; } .row label { min-width:100%; }
+    #empty h1 { font-size:26px; } body { font-size:16px; }
+    .turn-me { max-width:90%; }
+  }
 </style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="spark" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="var(--accent)"/><path fill="var(--bg)" d="M30 12C31.6 24.6 37.4 30.4 50 32C37.4 33.6 31.6 39.4 30 52C28.4 39.4 22.6 33.6 10 32C22.6 30.4 28.4 24.6 30 12Z"/><path fill="var(--bg)" opacity=".7" d="M48 8C48.6 12.6 50.4 14.4 55 15C50.4 15.6 48.6 17.4 48 22C47.4 17.4 45.6 15.6 41 15C45.6 14.4 47.4 12.6 48 8Z"/></symbol>
+  <symbol id="dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
 </svg>
-<nav aria-label="Sections">
-  <div class="brand"><img src="/app/icon.svg" alt=""><span>Market Assistant</span></div>
-  <button class="new" id="new" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New chat</button>
-  <button data-s="chat" class="on"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>Chat</button>
-  <button data-s="connections"><svg class="i" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>Connections</button>
-  <button data-s="about"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>About</button>
-  <div class="status" id="status">Loading…</div>
+<div class="scrim" id="scrim"></div>
+<nav aria-label="Conversations and settings">
+  <div class="top">
+    <div class="brand"><svg aria-hidden="true"><use href="#spark"/></svg><span>Market Assistant</span></div>
+    <button class="new" id="new" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>New chat</button>
+    <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="find" type="search" placeholder="Search chats" aria-label="Search chats" dir="auto"></label>
+  </div>
+  <div class="list" id="list"></div>
+  <div class="foot">
+    <button data-s="chat" class="on"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>Chat</button>
+    <button data-s="connections"><svg class="i" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>Connections</button>
+    <button data-s="about"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>About</button>
+    <div class="live" id="live"><span class="dot off"></span><span>Connecting…</span></div>
+    <div class="theme" role="group" aria-label="Theme">
+      <button data-t="light" title="Light" aria-label="Light theme"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      <button data-t="system" title="Match the system" aria-label="System theme"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></button>
+      <button data-t="dark" title="Dark" aria-label="Dark theme"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></button>
+    </div>
+  </div>
 </nav>
 <main>
+  <div class="bar"><button class="ghost" id="menu" aria-label="Open the sidebar"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><b id="bar-title">Market Assistant</b><button class="ghost" id="new2" aria-label="New chat"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button></div>
+
   <section id="chat" class="on">
     <div id="scroll">
       <div class="col" id="empty">
-        <svg class="mark"><use href="#spark"/></svg>
-        <h1>What would you like to know about the market?</h1>
+        <svg class="mark" aria-hidden="true"><use href="#spark"/></svg>
+        <h1 id="hello">What would you like to know about the market?</h1>
         <p>Prices, performance, sectors, signals and risk, in Arabic or English.<br><span dir="rtl" lang="ar">اسأل عن الأسعار والأداء والقطاعات والمخاطر، بالعربي أو بالإنجليزي.</span></p>
         <div class="chips" id="chips"></div>
       </div>
       <div class="col" id="log" aria-live="polite" hidden></div>
     </div>
     <div class="col composer">
-      <form class="ask" id="ask"><input id="q" dir="auto" maxlength="500" autocomplete="off" placeholder="Ask about the market… اسأل عن السوق" aria-label="Your question">
+      <form class="ask" id="ask"><textarea id="q" rows="1" dir="auto" maxlength="500" placeholder="Ask about the market… اسأل عن السوق" aria-label="Your question"></textarea>
         <button class="send" id="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></form>
       <p class="fine">Answers come from your data. They are information, not investment advice.</p>
     </div>
   </section>
 
   <section id="connections"><div class="page"><div class="col">
-    <h1>Connections</h1><p class="lead">Choose the data the assistant reads and the AI models it uses.</p>
-    <div class="lock"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Everything on this page stays on this computer. Keys are saved in your local settings file and are never shown again, only their last 4 characters.</span></div>
+    <h1>Connections</h1><p class="lead">The data the assistant reads, and the AI models it can use.</p>
     <div class="card">
-      <h2>Data</h2><p class="muted">Where the assistant reads market data from. It only ever reads.</p>
-      <div class="row"><label>Current</label><b id="data-now">–</b></div>
-      <div class="row"><label>Use demo data</label><button class="btn" id="use-demo">Switch to demo</button></div>
+      <h2>What is a connection?</h2>
+      <p class="muted">The assistant answers only from a database. A connection tells it which one. It reads it on every question and checks for new data every few seconds, so the answers follow your data live.</p>
+      <div class="explain">
+        <div><b>Your data</b>Demo data, your CSV files, a SQLite file or a PostgreSQL database. Read only: the assistant can never change it.</div>
+        <div><b>Live updates</b>When your pipeline adds today's prices, or you add them here, the next answer already uses them. No restart.</div>
+        <div><b>AI models (optional)</b>Free or paid providers make answers more flexible. Without any, it still answers offline.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="padding-top:0"><h2 style="flex:1">Data</h2><span class="live" id="live2" style="padding:0"></span></div>
+      <p class="muted" id="data-now">–</p>
+      <div class="stats">
+        <div class="stat"><small>Companies</small><b id="s-companies">–</b></div>
+        <div class="stat"><small>Price rows</small><b id="s-rows">–</b></div>
+        <div class="stat"><small>Latest trading day</small><b id="s-latest">–</b></div>
+        <div class="stat"><small>New data seen</small><b id="s-changed">–</b></div>
+      </div>
+      <p class="note" id="s-checked"></p>
+    </div>
+    <div class="card">
+      <h2>Live updates</h2><p class="muted">Add new prices to the current data, or watch it update by itself with the demo feed.</p>
+      <div class="row"><label for="f-new">New prices (CSV)</label><input type="file" id="f-new" accept=".csv"><button class="primary" id="add-prices">Add prices</button></div>
+      <p class="note">Same columns as <code class="k">daily_prices.csv</code>: ticker, date, open, high, low, close, volume. Existing days are corrected, indicators and signals are recalculated. Works on the live demo, your imported CSV data and your own SQLite file.</p>
+      <div class="row"><label>Demo live feed</label><label class="switch"><input type="checkbox" id="feed"><span id="feed-text">Off</span></label>
+        <select id="feed-every" aria-label="How often"><option value="5">every 5 s</option><option value="10" selected>every 10 s</option><option value="30">every 30 s</option><option value="60">every minute</option></select></div>
+      <p class="note">Adds a simulated trading day to a private copy of the demo data, so you can see answers change while you chat.</p>
+      <p id="live-msg" class="note"></p>
+    </div>
+    <div class="card">
+      <h2>Change the source</h2><p class="muted">Where the assistant reads market data from.</p>
+      <div class="row"><label>Demo data</label><button class="btn" id="use-demo">Use the demo</button></div>
       <div class="row"><label for="f-companies">companies.csv</label><input type="file" id="f-companies" accept=".csv"></div>
       <div class="row"><label for="f-prices">daily_prices.csv</label><input type="file" id="f-prices" accept=".csv"></div>
       <div class="row"><label for="f-fund">fundamentals.csv <span class="note">(optional)</span></label><input type="file" id="f-fund" accept=".csv"><button class="primary" id="import">Import CSV files</button></div>
-      <p class="note">Indicators (moving averages, RSI, 52-week range) and technical signals are computed for you. Column formats are in the README.</p>
-      <div class="row"><label>SQLite file</label><input id="sqlite" size="40" placeholder="C:\data\market.db"><button class="btn" id="use-sqlite">Connect</button></div>
-      <div class="row"><label>PostgreSQL</label><input id="pg" size="40" type="password" placeholder="postgresql://readonly_user:password@host:5432/db"><button class="btn" id="use-pg">Connect</button></div>
+      <div class="row"><label for="sqlite">SQLite file</label><input id="sqlite" size="36" placeholder="C:\data\market.db"><button class="btn" id="use-sqlite">Connect</button></div>
+      <div class="row"><label for="pg">PostgreSQL</label><input id="pg" size="36" type="password" placeholder="postgresql://readonly_user:password@host:5432/db"><button class="btn" id="use-pg">Connect</button></div>
       <p id="data-msg" class="note"></p>
     </div>
     <div class="card">
-      <h2>AI providers</h2><p class="muted">Tried in order. When one is out of free quota, rate-limited or down, the next one answers automatically. With none, the assistant runs offline.</p>
+      <h2>AI models</h2><p class="muted">Tried in order. When one is out of free quota, rate-limited or down, the next one answers. With none, the assistant runs offline.</p>
+      <div class="lock"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Keys stay on this computer, in your local settings file. They are never shown again, only their last 4 characters.</span></div>
       <div id="providers"></div>
       <div class="row"><button class="btn" id="add">+ Add provider</button>
         <select id="preset" aria-label="Preset"><option value="">Presets…</option><option>Gemini</option><option>Groq</option><option>OpenRouter</option><option>Ollama (local)</option></select>
-        <button class="primary" id="save">Save providers</button><span id="prov-msg" class="note"></span></div>
+        <button class="primary" id="save">Save</button><span id="prov-msg" class="note"></span></div>
     </div>
   </div></div></section>
 
   <section id="about"><div class="page"><div class="col">
     <h1>About</h1><p class="lead">A private Arabic and English market assistant that runs on your computer.</p>
     <div class="card">
-      <p>It plans each question, runs safe read-only queries, and answers like an analyst: a sentence for one fact, a table for comparisons. Open “How I got this” under any answer to see the exact steps.</p>
+      <p>It plans each question, runs safe read-only queries, and answers like an analyst: a sentence for one fact, a table and a chart for comparisons, and follow-up questions you can tap. Open “How I got this” under any answer to see the exact steps.</p>
+      <p class="note">Your chats are saved on this computer only, in the app's folder. Delete any of them from the sidebar.</p>
       <p class="note">Install it as an app from your browser menu (Install / Apps). It runs only on this computer at 127.0.0.1.</p>
       <p class="note">Answers are information, not investment advice.</p>
     </div>
@@ -167,10 +290,13 @@
 </main>
 <script>
   const TOKEN = document.querySelector('meta[name="app-token"]').content;
+  const USER = "local-user";  // the person using this computer; the server API accepts any id per person
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const admin = (path, opts = {}) => fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-App-Token": TOKEN, ...(opts.headers || {})}})
-    .then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)); return body; });
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  const api = (path, opts = {}) => fetch(path, {...opts, headers: {"Content-Type": "application/json", ...(opts.headers || {})}})
+    .then(async (r) => { const body = await r.json().catch(() => ({})); if (!r.ok) { const d = body.detail; throw new Error(typeof d === "string" ? d : (d && d.message) || JSON.stringify(d)); } return body; });
+  const admin = (path, opts = {}) => api(path, {...opts, headers: {"X-App-Token": TOKEN}});
   const PRESETS = {
     "Gemini": {base_url: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.5-flash"},
     "Groq": {base_url: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile"},
@@ -178,21 +304,39 @@
     "Ollama (local)": {base_url: "http://localhost:11434/v1", model: "qwen2.5:7b"},
   };
 
-  document.querySelectorAll("nav button[data-s]").forEach((b) => b.onclick = () => {
-    document.querySelectorAll("nav button[data-s]").forEach((x) => x.classList.toggle("on", x === b));
-    document.querySelectorAll("main section").forEach((s) => s.classList.toggle("on", s.id === b.dataset.s));
-  });
+  // ---------- theme ----------
+  function setTheme(t) {
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+    store.set("ma-theme", t);
+    document.querySelectorAll(".theme button").forEach((b) => b.classList.toggle("on", b.dataset.t === t));
+  }
+  document.querySelectorAll(".theme button").forEach((b) => b.onclick = () => setTheme(b.dataset.t));
+  setTheme(store.get("ma-theme") || "system");
 
-  // ---------- chat ----------
+  // ---------- layout ----------
+  const drawer = (on) => document.body.classList.toggle("drawer", on);
+  $("menu").onclick = () => drawer(true); $("scrim").onclick = () => drawer(false);
+  function show(name) {
+    document.querySelectorAll(".foot button[data-s]").forEach((x) => x.classList.toggle("on", x.dataset.s === name));
+    document.querySelectorAll("main section").forEach((s) => s.classList.toggle("on", s.id === name));
+    drawer(false);
+    if (name === "connections") loadSettings();
+  }
+  document.querySelectorAll(".foot button[data-s]").forEach((b) => b.onclick = () => show(b.dataset.s));
+  const hour = new Date().getHours();
+  $("hello").textContent = (hour < 12 ? "Good morning." : hour < 18 ? "Good afternoon." : "Good evening.") + " What would you like to know about the market?";
+
+  // ---------- rendering ----------
   const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   const cells = (row) => row.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+  const signClass = (c) => /^[+]\d/.test(c) ? " class='pos'" : /^[-−]\d/.test(c) && c.includes("%") ? " class='neg'" : "";
   function render(md) {
     const lines = md.split("\n"); let html = "";
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (line.trim().startsWith("|") && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1] || "")) {
         html += "<div class='tw'><table><thead><tr>" + cells(line).map((c) => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>";
-        i += 2; while (i < lines.length && lines[i].trim().startsWith("|")) { html += "<tr>" + cells(lines[i]).map((c) => `<td>${inline(c)}</td>`).join("") + "</tr>"; i++; }
+        i += 2; while (i < lines.length && lines[i].trim().startsWith("|")) { html += "<tr>" + cells(lines[i]).map((c) => `<td${signClass(c)}>${inline(c)}</td>`).join("") + "</tr>"; i++; }
         html += "</tbody></table></div>"; i--;
       } else if (/^\s*[-*] /.test(line)) {
         html += "<ul>"; while (i < lines.length && /^\s*[-*] /.test(lines[i])) { html += `<li>${inline(lines[i].replace(/^\s*[-*] /, ""))}</li>`; i++; } html += "</ul>"; i--;
@@ -200,50 +344,207 @@
     }
     return html;
   }
+  const svgEl = (tag, attrs) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const COLORS = ["var(--accent)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--chart-6)"];
+  const PERIOD = {"1w": "1 week", "1m": "1 month", "3m": "3 months", "6m": "6 months", "ytd": "year to date", "1y": "1 year"};
+  function chart(c, ar) {
+    // closing prices; several companies are rebased to 100 so their moves compare fairly
+    const box = document.createElement("div"); box.className = "chart"; box.dir = "ltr";
+    const head = document.createElement("div"); head.className = "head";
+    const keys = document.createElement("div"); keys.className = "keys";
+    const unit = document.createElement("span");
+    unit.textContent = (c.normalized ? "Rebased to 100 · " : `Close (${c.series[0].currency}) · `) + (PERIOD[c.period] || c.period);
+    c.series.forEach((s, k) => { const sp = document.createElement("span"); const dot = document.createElement("i"); dot.style.background = COLORS[k % 6]; sp.append(dot, document.createTextNode(ar ? s.name_ar : s.name_en)); keys.appendChild(sp); });
+    head.append(keys, unit);
+    const W = 640, H = 180, P = {l: 44, r: 10, t: 8, b: 22};
+    const lines = c.series.map((s) => { const base = s.points[0][1]; return s.points.map(([d, v]) => [d, c.normalized ? v / base * 100 : v]); });
+    const all = lines.flat().map((p) => p[1]); let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi - lo) * .08 || 1; lo -= pad; hi += pad;
+    const n = Math.max(...lines.map((l) => l.length));
+    const x = (i, len) => P.l + (W - P.l - P.r) * (len > 1 ? i / (len - 1) : 0), y = (v) => P.t + (H - P.t - P.b) * (1 - (v - lo) / (hi - lo));
+    const svg = svgEl("svg", {viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img", "aria-label": "Price chart"});
+    for (let g = 0; g <= 3; g++) { const v = lo + (hi - lo) * g / 3, yy = y(v);
+      svg.appendChild(svgEl("line", {x1: P.l, x2: W - P.r, y1: yy, y2: yy, stroke: "var(--line)", "stroke-width": 1}));
+      const t = svgEl("text", {x: P.l - 6, y: yy + 4, "text-anchor": "end", "font-size": 11, fill: "var(--faint)"}); t.textContent = v.toFixed(v < 10 ? 2 : 0); svg.appendChild(t); }
+    const first = lines[0][0][0], last = lines[0][lines[0].length - 1][0];
+    [[P.l, first, "start"], [W - P.r, last, "end"]].forEach(([xx, d, a]) => { const t = svgEl("text", {x: xx, y: H - 4, "text-anchor": a, "font-size": 11, fill: "var(--faint)"}); t.textContent = d; svg.appendChild(t); });
+    lines.forEach((l, k) => {
+      const dpath = l.map((p, i) => `${i ? "L" : "M"}${x(i, l.length).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+      if (lines.length === 1) svg.appendChild(svgEl("path", {d: `${dpath}L${x(l.length - 1, l.length)},${H - P.b}L${P.l},${H - P.b}Z`, fill: COLORS[0], opacity: .08}));
+      svg.appendChild(svgEl("path", {d: dpath, fill: "none", stroke: COLORS[k % 6], "stroke-width": 2, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round"}));
+    });
+    const guide = svgEl("line", {y1: P.t, y2: H - P.b, stroke: "var(--faint)", "stroke-dasharray": "3 3", visibility: "hidden"}); svg.appendChild(guide);
+    const tip = document.createElement("div"); tip.className = "tip"; tip.textContent = " ";
+    svg.addEventListener("pointermove", (e) => { const r = svg.getBoundingClientRect(); const fx = (e.clientX - r.left) / r.width * W;
+      const i = Math.max(0, Math.min(n - 1, Math.round((fx - P.l) / (W - P.l - P.r) * (n - 1))));
+      guide.setAttribute("x1", x(i, n)); guide.setAttribute("x2", x(i, n)); guide.setAttribute("visibility", "visible");
+      tip.textContent = lines.map((l, k) => { const p = l[Math.min(i, l.length - 1)]; const s = c.series[k]; return `${p[0]}  ${ar ? s.name_ar : s.name_en}: ${p[1].toFixed(2)}`; }).join("   ·   "); });
+    svg.addEventListener("pointerleave", () => { guide.setAttribute("visibility", "hidden"); tip.textContent = " "; });
+    box.append(head, svg, tip); return box;
+  }
+  function tableCsv(el) {
+    const t = el.querySelector("table"); if (!t) return null;
+    return [...t.rows].map((r) => [...r.cells].map((c) => `"${c.textContent.replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  }
+  function actions(d, text, ev) {
+    const bar = document.createElement("div"); bar.className = "actions";
+    const btn = (label, icon, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "ghost"; b.innerHTML = `<svg class="i" viewBox="0 0 24 24">${icon}</svg>`; b.append(document.createTextNode(label)); b.onclick = () => fn(b); bar.appendChild(b); };
+    btn("Copy", '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>', (b) => { navigator.clipboard.writeText(text).then(() => { b.lastChild.textContent = "Copied"; setTimeout(() => b.lastChild.textContent = "Copy", 1500); }); });
+    const csv = tableCsv(d);
+    if (csv) btn("CSV", '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>', () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], {type: "text/csv"})); a.download = "market-answer.csv"; a.click(); URL.revokeObjectURL(a.href); });
+    if (ev && ev.tool_calls && ev.tool_calls.length) {
+      const det = document.createElement("details"); det.className = "how"; const sum = document.createElement("summary"); sum.textContent = "How I got this";
+      const c = document.createElement("code"); c.textContent = ev.tool_calls.map((t) => `${t.tool}(${JSON.stringify(t.args)}) → ${t.rows} rows`).join("\n") + "\n" + (ev.trace || []).map((t) => `${t.step} ${t.ms} ms`).join(" · ");
+      det.append(sum, c); bar.appendChild(det);
+    }
+    d.appendChild(bar);
+  }
+  function follow(d, list) {
+    document.querySelectorAll(".follow").forEach((f) => f.remove());  // only the latest answer offers follow-ups
+    if (!list || !list.length) return;
+    const box = document.createElement("div"); box.className = "follow";
+    list.forEach((s) => { const b = document.createElement("button"); b.type = "button"; b.dir = "auto"; b.textContent = s; b.onclick = () => { if (!$("send").disabled) ask(s); }; box.appendChild(b); });
+    d.appendChild(box);
+  }
+
+  // ---------- chat ----------
   let session = null;
   const scroller = () => $("scroll");
   function showEmpty(on) { $("empty").hidden = !on; $("log").hidden = on; }
   function bubble(cls, html) {
     showEmpty(false);
     const row = document.createElement("div"), d = document.createElement("div");
-    if (cls === "me") { row.className = "turn-me"; row.dir = "auto"; row.innerHTML = html; $("log").appendChild(row); scroller().scrollTop = scroller().scrollHeight; return row; }
-    row.className = "turn-bot"; row.innerHTML = '<svg class="av" aria-hidden="true"><use href="#spark"/></svg>';
+    if (cls === "me") { row.className = "turn-me"; row.dir = "auto"; row.innerHTML = html; $("log").appendChild(row); return row; }
+    row.className = "turn-bot"; row.innerHTML = '<svg aria-hidden="true"><use href="#spark"/></svg>';
     d.className = "answer " + cls; d.dir = "auto"; d.innerHTML = html; row.appendChild(d); $("log").appendChild(row);
-    scroller().scrollTop = scroller().scrollHeight; return d;
+    return d;
   }
-  // keep the newest text in view while it streams, unless the reader scrolled up to read something earlier
-  function follow(update) { const l = scroller(), atEnd = l.scrollHeight - l.scrollTop - l.clientHeight < 80; update(); if (atEnd) l.scrollTop = l.scrollHeight; }
+  function keep(update) { const l = scroller(), atEnd = l.scrollHeight - l.scrollTop - l.clientHeight < 90; update(); if (atEnd) l.scrollTop = l.scrollHeight; }
   async function ask(q) {
-    bubble("me", esc(q)); const d = bubble("cursor", ""); $("send").disabled = true; let text = "";
+    bubble("me", esc(q)); const d = bubble("cursor", ""); scroller().scrollTop = scroller().scrollHeight;
+    $("send").disabled = true; let text = "";
     try {
-      const r = await fetch("/v1/ask/stream", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({message: q, session_id: session})});
+      const r = await fetch("/v1/ask/stream", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({message: q, session_id: session, user_id: USER})});
       if (!r.ok || !r.body) { const e = await r.json().catch(() => ({})); throw new Error((e.detail && e.detail.message) || "The assistant is unavailable."); }
       const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "";
       for (;;) { const {value, done} = await reader.read(); if (done) break; buf += dec.decode(value, {stream: true}); let cut;
         while ((cut = buf.indexOf("\n\n")) >= 0) { const chunk = buf.slice(0, cut); buf = buf.slice(cut + 2); const line = chunk.split("\n").find((l) => l.startsWith("data:")); if (!line) continue;
           const ev = JSON.parse(line.slice(5));
           if (ev.event === "meta") session = ev.session_id;
-          if (ev.event === "delta") { text += ev.text; follow(() => { d.innerHTML = render(text); }); }
-          if (ev.event === "final") follow(() => { d.innerHTML = render(ev.answer); if (ev.tool_calls && ev.tool_calls.length) { const det = document.createElement("details"); det.innerHTML = "<summary>How I got this</summary>"; const c = document.createElement("code"); c.textContent = ev.tool_calls.map((t) => `${t.tool}(${JSON.stringify(t.args)}) → ${t.rows} rows`).join("\n") + "\n" + (ev.trace || []).map((t) => `${t.step} ${t.ms} ms`).join(" · "); det.appendChild(c); d.appendChild(det); } });
+          if (ev.event === "delta") { text += ev.text; keep(() => { d.innerHTML = render(text); }); }
+          if (ev.event === "final") keep(() => {
+            d.innerHTML = render(ev.answer);
+            if (ev.chart) d.appendChild(chart(ev.chart, ev.language === "ar"));
+            actions(d, ev.answer, ev); follow(d, ev.suggestions);
+            session = ev.session_id; loadChats();
+          });
           if (ev.event === "error") throw new Error(ev.message); } }
     } catch (e) { d.classList.add("error"); d.textContent = e.message; }
     finally { d.classList.remove("cursor"); $("send").disabled = false; $("q").focus(); }
   }
-  $("ask").onsubmit = (e) => { e.preventDefault(); const q = $("q").value.trim(); if (q && !$("send").disabled) { $("q").value = ""; ask(q); } };
+  const grow = () => { const t = $("q"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 160) + "px"; };
+  $("q").addEventListener("input", grow);
+  const fitPlaceholder = () => { $("q").placeholder = innerWidth < 560 ? "Ask… اسأل…" : "Ask about the market… اسأل عن السوق"; };
+  fitPlaceholder(); addEventListener("resize", fitPlaceholder);
+  $("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("ask").requestSubmit(); } });
+  $("ask").onsubmit = (e) => { e.preventDefault(); const q = $("q").value.trim(); if (q && !$("send").disabled) { $("q").value = ""; grow(); ask(q); } };
   function showChips(kind, company) {
-    const list = kind === "demo" || !company
-      ? ["Top gainers this week", "سهم أطلس بكام؟", "Which sector did best this month?", "How risky is Atlas Robotics?", "فيه اختراقات النهارده؟"]
-      : ["Top gainers this week", `What's the price of ${company}?`, "Which sector did best this month?", `How risky is ${company}?`, "فيه اختراقات النهارده؟"];
+    const own = kind !== "demo" && kind !== "live_demo" && company;
+    const list = [
+      ["Top gainers this week", "Movers"], [own ? `What's the price of ${company}?` : "سهم أطلس بكام؟", "Price"],
+      ["Which sector did best this month?", "Sectors"], [own ? `How risky is ${company}?` : "Compare Atlas Robotics and Nile Telecom this month", own ? "Risk" : "Compare"],
+    ];
     $("chips").innerHTML = "";
-    list.forEach((s) => { const b = document.createElement("button"); b.type = "button"; b.textContent = s; b.dir = "auto";
+    list.forEach(([s, tag]) => { const b = document.createElement("button"); b.type = "button"; b.dir = "auto";
+      const sm = document.createElement("small"); sm.textContent = tag; b.append(sm, document.createTextNode(s));
       b.onclick = () => { if (!$("send").disabled) ask(s); }; $("chips").appendChild(b); });
   }
   showChips("demo");
-  $("new").onclick = () => {
+  function newChat() {
     if ($("send").disabled) return;
-    session = null; $("log").innerHTML = ""; showEmpty(true);
-    document.querySelector('nav button[data-s="chat"]').click(); $("q").focus();
-  };
+    session = null; $("log").innerHTML = ""; showEmpty(true); show("chat"); markActive(); $("q").focus();
+  }
+  $("new").onclick = newChat; $("new2").onclick = newChat;
+
+  // ---------- saved conversations ----------
+  let chats = [];
+  function group(c) {
+    if (c.pinned) return "Pinned";
+    const days = (Date.now() - new Date(c.updated_at).getTime()) / 864e5;
+    return days < 1 && new Date(c.updated_at).toDateString() === new Date().toDateString() ? "Today" : days < 7 ? "Previous 7 days" : days < 30 ? "Previous 30 days" : "Older";
+  }
+  function markActive() { document.querySelectorAll(".conv").forEach((x) => x.classList.toggle("on", x.dataset.id === session)); }
+  async function loadChats() {
+    try { chats = (await api(`/v1/conversations?user_id=${USER}&q=${encodeURIComponent($("find").value)}`)).conversations; }
+    catch (e) { chats = []; }
+    const list = $("list"); list.innerHTML = ""; let last = "";
+    if (!chats.length) { const p = document.createElement("div"); p.className = "empty-list"; p.textContent = $("find").value ? "No chats match." : "Your chats will appear here."; list.appendChild(p); return; }
+    chats.forEach((c) => {
+      const g = group(c); if (g !== last) { const h = document.createElement("div"); h.className = "group"; h.textContent = g; list.appendChild(h); last = g; }
+      const row = document.createElement("div"); row.className = "conv"; row.dataset.id = c.id; row.tabIndex = 0;
+      const t = document.createElement("span"); t.className = "t"; t.dir = "auto"; t.textContent = c.title; t.title = c.title;
+      const more = document.createElement("button"); more.className = "ghost"; more.type = "button"; more.setAttribute("aria-label", "Options");
+      more.innerHTML = '<svg class="i" viewBox="0 0 24 24"><use href="#dots"/></svg>';
+      more.onclick = (e) => { e.stopPropagation(); openMenu(row, c); };
+      row.append(t, more); row.onclick = () => openChat(c.id);
+      row.onkeydown = (e) => { if (e.key === "Enter") openChat(c.id); };
+      list.appendChild(row);
+    });
+    markActive();
+  }
+  let findTimer; $("find").addEventListener("input", () => { clearTimeout(findTimer); findTimer = setTimeout(loadChats, 200); });
+  function closeMenus() { document.querySelectorAll(".menu").forEach((m) => m.remove()); }
+  document.addEventListener("click", closeMenus);
+  function openMenu(row, c) {
+    closeMenus();
+    const m = document.createElement("div"); m.className = "menu";
+    const item = (label, cls, fn) => { const b = document.createElement("button"); b.type = "button"; if (cls) b.className = cls; b.textContent = label; b.onclick = (e) => { e.stopPropagation(); closeMenus(); fn(); }; m.appendChild(b); };
+    item("Rename", "", () => rename(row, c));
+    item(c.pinned ? "Unpin" : "Pin", "", async () => { await api(`/v1/conversations/${c.id}?user_id=${USER}`, {method: "PATCH", body: JSON.stringify({pinned: !c.pinned})}); loadChats(); });
+    item("Delete", "del", async () => {
+      if (!confirm("Delete this chat? This cannot be undone.")) return;
+      await api(`/v1/conversations/${c.id}?user_id=${USER}`, {method: "DELETE"});
+      if (session === c.id) newChat(); loadChats();
+    });
+    row.appendChild(m);
+  }
+  function rename(row, c) {
+    const input = document.createElement("input"); input.value = c.title; input.maxLength = 80; input.dir = "auto";
+    row.querySelector(".t").replaceWith(input); input.focus(); input.select();
+    let done = false;
+    const save = async (ok) => { if (done) return; done = true;
+      if (ok && input.value.trim() && input.value.trim() !== c.title) await api(`/v1/conversations/${c.id}?user_id=${USER}`, {method: "PATCH", body: JSON.stringify({title: input.value.trim()})}).catch(() => {});
+      loadChats(); };
+    input.onkeydown = (e) => { if (e.key === "Enter") save(true); if (e.key === "Escape") save(false); };
+    input.onblur = () => save(true); input.onclick = (e) => e.stopPropagation();
+  }
+  async function openChat(id) {
+    if ($("send").disabled) return;
+    try {
+      const c = await api(`/v1/conversations/${id}?user_id=${USER}`);
+      session = id; $("log").innerHTML = ""; show("chat");
+      c.messages.forEach((m) => { if (m.role === "user") bubble("me", esc(m.content)); else { const d = bubble("", render(m.content)); actions(d, m.content, null); } });
+      if (!c.messages.length) showEmpty(true);
+      markActive(); scroller().scrollTop = scroller().scrollHeight;
+    } catch (e) { toast(e.message); }
+  }
+
+  // ---------- live data status ----------
+  let lastLatest = null;
+  const ago = (iso) => { const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000)); return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`; };
+  function toast(text) { const t = document.createElement("div"); t.className = "toast"; t.textContent = text; document.body.appendChild(t); setTimeout(() => t.remove(), 3500); }
+  async function pollStatus() {
+    try {
+      const s = await api("/v1/data/status");
+      const html = `<span class="dot"></span><span>Live · ${s.companies} companies · data to ${esc(s.latest_date)}</span>`;
+      $("live").innerHTML = html; $("live2").innerHTML = `<span class="dot"></span><span>Live · checked ${ago(s.checked_at)}</span>`;
+      $("s-companies").textContent = s.companies.toLocaleString(); $("s-rows").textContent = s.price_rows.toLocaleString();
+      $("s-latest").textContent = s.latest_date; $("s-changed").textContent = ago(s.changed_at);
+      $("s-checked").textContent = `Checked for new data every ${s.refresh_seconds} seconds. Last check: ${new Date(s.checked_at).toLocaleTimeString()}.`;
+      if (lastLatest && s.latest_date !== lastLatest) toast(`New data: trading day ${s.latest_date}`);
+      lastLatest = s.latest_date;
+    } catch (e) { $("live").innerHTML = '<span class="dot off"></span><span>Data unavailable</span>'; }
+  }
+  setInterval(pollStatus, 5000);
 
   // ---------- connections ----------
   function providerRow(p = {}) {
@@ -263,10 +564,14 @@
   }
   async function loadSettings() {
     const s = await admin("/v1/app/settings");
-    const d = s.data; $("data-now").textContent = {demo: "Demo data (fictional companies)", csv: "Your imported CSV files", sqlite: `SQLite: ${d.sqlite_path}`, postgres: `PostgreSQL: ${d.postgres_url}`}[d.kind] + ` · ${s.companies} companies · latest ${s.latest_date}`;
+    const d = s.data;
+    $("data-now").textContent = "Reading: " + {demo: "the demo data (fictional companies)", live_demo: "the live demo (a private copy that the demo feed updates)", csv: "your imported CSV files", sqlite: `SQLite file ${d.sqlite_path}`, postgres: `PostgreSQL ${d.postgres_url}`}[d.kind] + ".";
     showChips(d.kind, s.example_company);
     $("providers").innerHTML = ""; s.providers.forEach(providerRow);
-    $("status").innerHTML = `<span class="dot"></span>${s.companies} companies · data to ${esc(s.latest_date)}<br>AI: ${s.llm === "on" ? s.providers.map((p) => esc(p.name)).join(" → ") : "offline mode (no key needed)"}`;
+    $("feed").checked = s.live_feed.running; $("feed-text").textContent = s.live_feed.running ? `On · ${s.live_feed.days_added} days added` : "Off";
+    $("add-prices").disabled = !s.writable;
+    $("add-prices").title = s.writable ? "" : "Switch to the live demo, your CSV data or your own SQLite file to add prices";
+    pollStatus();
   }
   $("add").onclick = () => providerRow();
   $("preset").onchange = (e) => { const name = e.target.value; if (PRESETS[name]) providerRow({name: name.split(" ")[0], ...PRESETS[name]}); e.target.value = ""; };
@@ -282,8 +587,8 @@
   $("use-demo").onclick = () => setData({kind: "demo"});
   $("use-sqlite").onclick = () => setData({kind: "sqlite", sqlite_path: $("sqlite").value.trim()});
   $("use-pg").onclick = () => setData({kind: "postgres", postgres_url: $("pg").value.trim()});
+  const read = (el) => el.files[0] ? el.files[0].text() : Promise.resolve(null);
   $("import").onclick = async () => {
-    const read = (el) => el.files[0] ? el.files[0].text() : Promise.resolve(null);
     const [companies, daily_prices, fundamentals] = await Promise.all([read($("f-companies")), read($("f-prices")), read($("f-fund"))]);
     if (!companies || !daily_prices) { $("data-msg").innerHTML = '<span class="bad">Choose companies.csv and daily_prices.csv</span>'; return; }
     $("data-msg").textContent = "Importing and computing indicators…";
@@ -291,7 +596,21 @@
       $("data-msg").innerHTML = `<span class="ok">Imported ${r.imported.companies} companies, ${r.imported.prices} prices, ${r.imported.signals} signals</span>`; await loadSettings(); }
     catch (e) { $("data-msg").innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
   };
-  loadSettings();
+  $("add-prices").onclick = async () => {
+    const daily_prices = await read($("f-new"));
+    if (!daily_prices) { $("live-msg").innerHTML = '<span class="bad">Choose a CSV file with the new prices</span>'; return; }
+    $("live-msg").textContent = "Adding…";
+    try { const r = await admin("/v1/app/add-prices", {method: "POST", body: JSON.stringify({daily_prices})});
+      $("live-msg").innerHTML = `<span class="ok">Added ${r.added.prices} prices for ${r.added.companies} companies, ${r.added.signals} new signals. Latest trading day: ${esc(r.added.latest_date)}.</span>`; pollStatus(); }
+    catch (e) { $("live-msg").innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+  };
+  const setFeed = async () => {
+    try { const r = await admin("/v1/app/live", {method: "POST", body: JSON.stringify({on: $("feed").checked, every_s: Number($("feed-every").value)})});
+      $("live-msg").innerHTML = r.running ? '<span class="ok">The demo feed is on. Ask “Top gainers today” now and again in a few seconds.</span>' : "The demo feed is off."; await loadSettings(); }
+    catch (e) { $("live-msg").innerHTML = `<span class="bad">${esc(e.message)}</span>`; $("feed").checked = false; } };
+  $("feed").onchange = setFeed; $("feed-every").onchange = () => { if ($("feed").checked) setFeed(); };
+
+  loadSettings().catch(() => {}); loadChats(); pollStatus();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/app/sw.js", {scope: "/app"}).catch(() => {});
 </script>
 </body>

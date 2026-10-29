@@ -1,5 +1,5 @@
 // Minimal service worker so the app can be installed. It never caches API responses or settings.
-const SHELL = "market-assistant-shell-v2";
+const SHELL = "market-assistant-shell-v3";
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL).then((cache) => cache.addAll(["/app/icon.svg", "/app/manifest.webmanifest"])));
   self.skipWaiting();
