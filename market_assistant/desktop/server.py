@@ -30,6 +30,7 @@ from market_assistant.agent.pipeline import Assistant
 from market_assistant.api.app import create_app
 from market_assistant.core.settings import ROOT, Settings
 from market_assistant.db.builder import ImportError_, import_csv
+from market_assistant.db.live import LiveFeed, append_csv
 from market_assistant.desktop.store import ConfigStore, DataSource, LocalConfig, ProviderEntry
 
 WEB = ROOT / "web"
@@ -47,9 +48,18 @@ class ProviderIn(BaseModel):
 
 
 class DataIn(BaseModel):
-    kind: str = Field(pattern="^(demo|sqlite|postgres)$")
+    kind: str = Field(pattern="^(demo|live_demo|sqlite|postgres)$")
     sqlite_path: str | None = None
     postgres_url: str | None = Field(None, max_length=500)
+
+
+class PricesIn(BaseModel):
+    daily_prices: str
+
+
+class LiveIn(BaseModel):
+    on: bool
+    every_s: float = Field(10.0, ge=2, le=3600)
 
 
 class CsvIn(BaseModel):
@@ -90,9 +100,15 @@ def demo_database(base: Settings) -> Path:
 
 def settings_for(config: LocalConfig, folder: Path, base: Settings) -> Settings:
     data = config.data
-    update: dict[str, Any] = {"allowed_origins": [], "database_url": None}
+    update: dict[str, Any] = {"allowed_origins": [], "database_url": None, "history_db": folder / "history.db"}
     if data.kind == "demo":
         update["db_path"] = demo_database(base)
+    elif data.kind == "live_demo":  # a private copy of the demo that the live feed can write to
+        live = folder / "live-demo.db"
+        if not live.exists():
+            folder.mkdir(parents=True, exist_ok=True)
+            live.write_bytes(demo_database(base).read_bytes())
+        update["db_path"] = live
     elif data.kind == "csv":
         update["db_path"] = folder / "my-data.db"
     elif data.kind == "sqlite":
@@ -102,6 +118,18 @@ def settings_for(config: LocalConfig, folder: Path, base: Settings) -> Settings:
     return base.model_copy(update=update)
 
 
+def writable_path(config: LocalConfig, folder: Path) -> Path | None:
+    """The SQLite file new prices can be added to, or None for read-only sources."""
+    kind = config.data.kind
+    if kind == "live_demo":
+        return folder / "live-demo.db"
+    if kind == "csv":
+        return folder / "my-data.db"
+    if kind == "sqlite" and config.data.sqlite_path:
+        return Path(config.data.sqlite_path)
+    return None
+
+
 def create_desktop_app(config_dir: Path, port: int, base: Settings | None = None,
                        transport: httpx.BaseTransport | None = None, token: str | None = None) -> FastAPI:
     store = ConfigStore(config_dir)
@@ -109,13 +137,16 @@ def create_desktop_app(config_dir: Path, port: int, base: Settings | None = None
     token = token or secrets.token_urlsafe(32)
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     lock = threading.Lock()
-    state: dict[str, Any] = {}
+    state: dict[str, Any] = {"feed": None}
 
     def rebuild(config: LocalConfig) -> None:
         settings = settings_for(config, store.folder, base)
         bot = Assistant(settings, llm=build_llm(config, transport))
         if not bot.db.is_ready():
             raise HTTPException(422, "the database has no companies table or no rows; check the source")
+        if config.data.kind != "live_demo" and state.get("feed"):
+            state["feed"].stop()  # the feed only writes to the live demo copy
+            state["feed"] = None
         state.update(config=config, inner=create_app(settings, bot), bot=bot)
 
     rebuild(store.load())
@@ -161,9 +192,51 @@ def create_desktop_app(config_dir: Path, port: int, base: Settings | None = None
             config: LocalConfig = state["config"]
             bot: Assistant = state["bot"]
             companies = bot.db.companies
+            feed: LiveFeed | None = state["feed"]
             return {**ConfigStore.public_view(config), "companies": len(companies), "latest_date": bot.db.latest_date,
                     "example_company": companies[0]["name_en"] if companies else None,
-                    "llm": "on" if bot.llm else "offline"}
+                    "llm": "on" if bot.llm else "offline", "data_status": bot.db.status(),
+                    "writable": writable_path(config, store.folder) is not None,
+                    "live_feed": {"running": bool(feed and feed.running), "every_s": feed.every_s if feed else None,
+                                  "days_added": feed.days_added if feed else 0}}
+
+    @outer.post("/v1/app/add-prices")
+    def add_prices(body: PricesIn) -> dict[str, Any]:
+        """Append or correct daily prices in the current database; the assistant answers with them at once."""
+        if len(body.daily_prices) > MAX_IMPORT_BYTES:
+            raise HTTPException(413, "file is too large (50 MB max)")
+        with lock:
+            path = writable_path(state["config"], store.folder)
+            if path is None:
+                raise HTTPException(422, "the bundled demo and PostgreSQL are read-only here: use the live demo, your "
+                                         "imported CSV data or your own SQLite file")
+            with tempfile.TemporaryDirectory() as tmp:
+                csv_file = Path(tmp) / "daily_prices.csv"
+                csv_file.write_text(body.daily_prices, encoding="utf-8")
+                try:
+                    result = append_csv(csv_file, path)
+                except ImportError_ as exc:
+                    raise HTTPException(422, str(exc)) from exc
+            state["bot"].db.snapshot(force=True)
+            return {"added": result, "data_status": state["bot"].db.status()}
+
+    @outer.post("/v1/app/live")
+    def live_feed(body: LiveIn) -> dict[str, Any]:
+        """Switch the simulated live feed on or off. Turning it on moves the app to the live demo copy."""
+        with lock:
+            feed: LiveFeed | None = state["feed"]
+            if feed:
+                feed.stop()
+                state["feed"] = None
+            if body.on:
+                if state["config"].data.kind != "live_demo":
+                    config = state["config"].model_copy(update={"data": DataSource(kind="live_demo")})
+                    rebuild(config)
+                    store.save(config)
+                feed = LiveFeed(store.folder / "live-demo.db", body.every_s)
+                feed.start()
+                state["feed"] = feed
+            return {"running": bool(state["feed"]), "every_s": body.every_s if body.on else None}
 
     @outer.put("/v1/app/providers")
     def save_providers(body: list[ProviderIn]) -> dict[str, Any]:

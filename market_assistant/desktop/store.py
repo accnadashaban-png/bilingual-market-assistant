@@ -35,7 +35,7 @@ class ProviderEntry(BaseModel):
 
 
 class DataSource(BaseModel):
-    kind: Literal["demo", "csv", "sqlite", "postgres"] = "demo"
+    kind: Literal["demo", "live_demo", "csv", "sqlite", "postgres"] = "demo"
     sqlite_path: str | None = None       # for "sqlite"
     postgres_url: SecretStr | None = None  # for "postgres": a read-only role
     csv_folder: str | None = None        # last imported folder, for display
