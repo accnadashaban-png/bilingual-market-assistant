@@ -211,3 +211,30 @@ def test_import_validates_and_computes_indicators(tmp_path) -> None:
     (tmp_path / "daily_prices.csv").write_text(files["daily_prices"].replace("ZZZ,", "QQQ,", 1), encoding="utf-8")
     with pytest.raises(ImportError_, match="not in companies.csv"):
         import_csv(tmp_path, tmp_path / "out2.db")
+
+
+# ---------- live data in the local app ----------
+
+def test_live_demo_feed_and_adding_prices(client) -> None:
+    s = admin(client, "GET", "/v1/app/settings").json()
+    assert s["data_status"]["companies"] > 0 and s["live_feed"]["running"] is False and s["writable"] is False
+    assert admin(client, "POST", "/v1/app/add-prices", json={"daily_prices": "ticker,date,open,high,low,close,volume\n"}).status_code == 422
+    assert admin(client, "POST", "/v1/app/live", json={"on": True, "every_s": 3600}).json()["running"] is True
+    s = admin(client, "GET", "/v1/app/settings").json()
+    assert s["data"]["kind"] == "live_demo" and s["writable"] and s["live_feed"]["running"]
+    latest = date.fromisoformat(s["latest_date"])
+    day = latest + timedelta(days=1 if latest.weekday() < 4 else 7 - latest.weekday())
+    csv_text = f"ticker,date,open,high,low,close,volume\nATLS,{day},100,101,99,100.5,1000\n"
+    r = admin(client, "POST", "/v1/app/add-prices", json={"daily_prices": csv_text})
+    assert r.status_code == 200 and r.json()["added"]["latest_date"] == day.isoformat()
+    assert r.json()["data_status"]["latest_date"] == day.isoformat()
+    bad = admin(client, "POST", "/v1/app/add-prices", json={"daily_prices": csv_text.replace("ATLS", "NOPE")})
+    assert bad.status_code == 422 and "unknown tickers" in bad.json()["detail"]
+    assert admin(client, "POST", "/v1/app/live", json={"on": False}).json()["running"] is False
+    assert client.post("/v1/app/live", json={"on": True}).status_code == 401  # the token is still required
+
+
+def test_local_app_saves_chats_for_the_local_user(client) -> None:
+    r = client.post("/v1/ask", json={"message": "Top gainers this week", "user_id": "local-user"}).json()
+    listed = client.get("/v1/conversations?user_id=local-user").json()["conversations"]
+    assert listed[0]["id"] == r["session_id"] and r["suggestions"]
