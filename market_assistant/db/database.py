@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
-from functools import cached_property
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,8 @@ class BaseDatabase:
 
     dialect = "sqlite"
     max_rows = 50
+    refresh_s = 5.0  # how often the live summary (companies, latest date, row count) is re-read
+    _snap: dict[str, Any] | None = None
 
     def fetch(self, sql: str, params: dict[str, Any] | None = None, limit: int | None = None) -> list[dict[str, Any]]:
         """Run a read-only query. `limit` lets internal calculations read more than the user-facing row cap."""
@@ -43,17 +45,49 @@ class BaseDatabase:
         except Exception:
             return False
 
-    @cached_property
+    # ---------- live data ----------
+    # The data is read on every question. These summaries are kept for a few seconds only, so new prices, new
+    # trading days or new companies written by any other process (an import, a scheduled job, a live feed)
+    # appear without restarting anything.
+
+    def snapshot(self, force: bool = False) -> dict[str, Any]:
+        now = time.monotonic()
+        snap = self._snap
+        if snap is None or force or now - snap["checked"] >= self.refresh_s:
+            companies = self.fetch("SELECT ticker, name_en, name_ar, sector, country, currency FROM companies ORDER BY ticker",
+                                   limit=100_000)
+            latest = str(self.scalar("SELECT MAX(date) FROM daily_prices"))
+            rows = int(self.scalar("SELECT COUNT(*) AS n FROM daily_prices") or 0)
+            version = (len(companies), latest, rows, hash(tuple(c["ticker"] for c in companies)))
+            stamp = datetime.now(UTC).isoformat(timespec="seconds")
+            changed_at = stamp if snap is None or snap["version"] != version else snap["changed_at"]
+            self._snap = snap = {"checked": now, "checked_at": stamp, "changed_at": changed_at,
+                                 "version": version, "companies": companies, "latest_date": latest, "rows": rows,
+                                 "sectors": sorted({c["sector"] for c in companies})}
+        return snap
+
+    @property
+    def data_version(self) -> tuple[Any, ...]:
+        return tuple(self.snapshot()["version"])
+
+    @property
     def latest_date(self) -> str:
-        return str(self.scalar("SELECT MAX(date) FROM daily_prices"))
+        return str(self.snapshot()["latest_date"])
 
-    @cached_property
+    @property
     def companies(self) -> list[dict[str, Any]]:
-        return self.fetch("SELECT ticker, name_en, name_ar, sector, country, currency FROM companies ORDER BY ticker")
+        return list(self.snapshot()["companies"])
 
-    @cached_property
+    @property
     def sectors(self) -> list[str]:
-        return sorted({c["sector"] for c in self.companies})
+        return list(self.snapshot()["sectors"])
+
+    def status(self) -> dict[str, Any]:
+        """What the Connections page shows: is the data there, how much, how recent, when it last changed."""
+        s = self.snapshot(force=True)
+        return {"companies": len(s["companies"]), "price_rows": s["rows"], "latest_date": s["latest_date"],
+                "sectors": len(s["sectors"]), "checked_at": s["checked_at"], "changed_at": s["changed_at"],
+                "refresh_seconds": self.refresh_s}
 
     def schema_text(self) -> str:
         """Short schema description for the planner prompt."""
