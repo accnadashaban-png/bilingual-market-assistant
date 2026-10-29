@@ -8,7 +8,7 @@
 | tool accuracy | 100.0% |
 | fact accuracy | 100.0% |
 | language match | 100.0% |
-| latency p50 / p95 | 53.6 / 135.2 ms |
+| latency p50 / p95 | 64.3 / 162.1 ms |
 
 | Category | Pass rate |
 |---|---|
