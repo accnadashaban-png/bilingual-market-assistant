@@ -11,9 +11,11 @@ python -m market_assistant app --port 9000
 
 The app has three pages:
 
-- **Chat:** the same assistant as the API, streaming, with "How I got this" showing the tools and steps behind each answer.
-- **Connections:** where the data comes from and which AI providers to use.
+- **Chat:** the same assistant as the API, streaming, with a price chart, follow-up questions, copy, CSV export of tables and "How I got this" showing the tools and steps behind each answer. The sidebar keeps your chats: grouped by day, searchable, and each can be renamed, pinned or deleted. They are saved in `history.db` next to the settings, on this computer only.
+- **Connections:** what a connection is, where the data comes from and how fresh it is, live updates, and which AI providers to use.
 - **About:** what runs where.
+
+The theme switch at the bottom of the sidebar picks light, dark or the system setting. On a phone the sidebar slides out from the menu button.
 
 ## Data
 
@@ -25,6 +27,14 @@ The app has three pages:
 | PostgreSQL | A `postgresql://` URL for a **read-only** user (see [DEPLOYMENT.md](DEPLOYMENT.md) for the role). |
 
 Switching is atomic: if the new source fails to open or has no companies, the app keeps the one that works and says why.
+
+### Live updates
+
+The assistant reads the database on every question and re-checks its summary (companies, latest trading day, price rows) every 5 seconds, so data written by anything else (your pipeline, a scheduled job) is answered at once. The Connections page shows the numbers and when new data was last seen.
+
+- **Add prices:** upload a CSV with the `daily_prices.csv` columns. New days are added, existing days are corrected, and indicators and signals are recalculated for those companies in one transaction. Available for the live demo, your imported CSV data and your own SQLite file (the bundled demo and PostgreSQL are read-only here).
+- **Demo feed:** switch it on to use a private copy of the demo (`live-demo.db`) that fills in trading days up to today and then moves today's prices every few seconds. Ask "Top gainers today" twice to see the answer change. It never writes a future date.
+- From a terminal: `python -m market_assistant add-prices new.csv --db path/to/market.db`.
 
 ### CSV formats
 
