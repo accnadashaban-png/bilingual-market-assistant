@@ -21,12 +21,14 @@ from typing import Annotated, Any, TypedDict
 from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
+from market_assistant.agent.extras import chart_for, suggestions
 from market_assistant.agent.language import detect_dialect, detect_language
 from market_assistant.agent.llm import ChatModel, build_llm
 from market_assistant.agent.planner import LLMPlanner, Memory, Plan, RulePlanner
 from market_assistant.agent.tools import ToolResult, call_tool
 from market_assistant.agent.writer import LLMWriter, TemplateWriter, chunk_text, finalize
 from market_assistant.core.errors import AssistantError, LLMUnavailableError, NotFoundError, PlanningError, UnsafeQueryError
+from market_assistant.core.history import ChatHistory, valid_id
 from market_assistant.core.observability import BLOCKED, LATENCY, REQUESTS, TOOL_CALLS, log
 from market_assistant.core.settings import Settings, get_settings
 from market_assistant.db.database import open_database
@@ -57,6 +59,8 @@ class Answer:
     error: str | None = None
     latency_ms: int = 0
     trace: list[dict[str, Any]] = field(default_factory=list)
+    chart: dict[str, Any] | None = None  # closing prices behind the answer, for a chart
+    suggestions: list[str] = field(default_factory=list)  # follow-up questions in the user's language
 
     def to_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
@@ -95,6 +99,7 @@ class Assistant:
         self.template_writer = TemplateWriter()
         self.llm_writer = LLMWriter(self.llm) if self.llm else None
         self.sessions = SessionStore(self.settings.session_ttl_s)
+        self.history = ChatHistory(self.settings.history_db) if self.settings.history_db else None
         self.graph = self._build(full=True)
         self.prepare_graph = self._build(full=False)
 
@@ -177,16 +182,33 @@ class Assistant:
 
     # ---------- public API ----------
 
-    def ask(self, question: str, session_id: str | None = None) -> Answer:
-        start = time.perf_counter()
+    def _session(self, session_id: str | None, user_id: str | None) -> tuple[str, Memory]:
+        """The conversation's memory. With saved history, a conversation that is no longer in memory (the app
+        restarted) is restored, and nobody can continue someone else's conversation."""
+        if self.history and session_id:
+            owner = self.history.owner(session_id)
+            if not valid_id(session_id) or (owner is not None and owner != user_id):
+                session_id = None
         session_id, memory = self.sessions.get(session_id)
-        state: State = self.graph.invoke({"question": question.strip(), "memory": memory})
-        return self._done(state, session_id, memory, start)
+        if self.history and user_id and not memory.history and self.history.owner(session_id) == user_id:
+            turns = self.settings.history_turns
+            memory.history = [{"role": m["role"], "content": m["content"]}
+                              for m in self.history.messages(session_id)][-2 * turns:] if turns else []
+            ctx = self.history.context(session_id)
+            memory.last_tool, memory.last_args = ctx.get("tool"), dict(ctx.get("args") or {})
+            memory.last_tickers = list(ctx.get("tickers") or [])
+        return session_id, memory
 
-    def stream(self, question: str, session_id: str | None = None) -> Iterator[dict[str, Any]]:
+    def ask(self, question: str, session_id: str | None = None, user_id: str | None = None) -> Answer:
+        start = time.perf_counter()
+        session_id, memory = self._session(session_id, user_id)
+        state: State = self.graph.invoke({"question": question.strip(), "memory": memory})
+        return self._done(state, session_id, memory, start, user_id)
+
+    def stream(self, question: str, session_id: str | None = None, user_id: str | None = None) -> Iterator[dict[str, Any]]:
         """Yield events: meta (route + tool calls), delta (text chunks), final (gated answer)."""
         start = time.perf_counter()
-        session_id, memory = self.sessions.get(session_id)
+        session_id, memory = self._session(session_id, user_id)
         state: State = self.prepare_graph.invoke({"question": question.strip(), "memory": memory})
         yield {"event": "meta", "session_id": session_id, "route": state["plan"].route,
                "language": state["language"], "tool_calls": _calls(state)}
@@ -210,11 +232,22 @@ class Assistant:
                 yield {"event": "delta", "text": piece}
         state["answer"] = text
         state = {**state, **self._finalize(state)}
-        yield {"event": "final", **self._done(state, session_id, memory, start).to_dict()}
+        yield {"event": "final", **self._done(state, session_id, memory, start, user_id).to_dict()}
 
-    def _done(self, state: State, session_id: str, memory: Memory, start: float) -> Answer:
+    def _done(self, state: State, session_id: str, memory: Memory, start: float, user_id: str | None = None) -> Answer:
         plan, lang = state["plan"], state["language"]
         memory.remember(plan, state["question"], state["answer"], self.settings.history_turns)
+        results = [] if state.get("error") else state.get("results", [])
+        try:
+            chart = chart_for(self.db, results) if plan.route == "data" else None
+            follow = suggestions(self.db, results, lang) if plan.route in ("data", "chat", "clarify") else []
+        except Exception:  # noqa: BLE001 - extras must never cost the user their answer
+            logger.exception("answer extras failed")
+            chart, follow = None, []
+        if self.history and valid_id(user_id):
+            self.history.record(str(user_id), session_id, state["question"], state["answer"], plan.route, lang,
+                                [c.tool for c in plan.tool_calls],
+                                {"tool": memory.last_tool, "args": memory.last_args, "tickers": memory.last_tickers})
         elapsed = time.perf_counter() - start
         REQUESTS.labels(plan.route, lang).inc()
         LATENCY.observe(elapsed)
@@ -223,7 +256,7 @@ class Assistant:
             tools=[c.tool for c in plan.tool_calls], error=error.code if error else None, ms=int(elapsed * 1000))
         return Answer(answer=state["answer"], route=plan.route, language=lang, dialect=state["dialect"],
                       session_id=session_id, tool_calls=_calls(state), error=error.code if error else None,
-                      latency_ms=int(elapsed * 1000), trace=list(state.get("trace", [])))
+                      latency_ms=int(elapsed * 1000), trace=list(state.get("trace", [])), chart=chart, suggestions=follow)
 
 
 def _timed(name: str, node):  # type: ignore[no-untyped-def]

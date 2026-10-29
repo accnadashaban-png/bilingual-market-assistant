@@ -152,7 +152,16 @@ def _first(text: str, table: list[tuple[str, list[str]]]) -> str | None:
 class RulePlanner:
     def __init__(self, db: Database):
         self.db = db
-        self.aliases = self._build_aliases()
+        self._aliases: list[tuple[str, str]] = []
+        self._aliases_for: tuple[object, ...] | None = None
+
+    @property
+    def aliases(self) -> list[tuple[str, str]]:
+        """Company names to tickers, rebuilt when the live data adds, renames or removes a company."""
+        version = self.db.data_version
+        if version != self._aliases_for:
+            self._aliases, self._aliases_for = self._build_aliases(), version
+        return self._aliases
 
     def _build_aliases(self) -> list[tuple[str, str]]:
         """(alias, ticker) pairs, longest first, built from the companies table."""

@@ -49,8 +49,10 @@ def base_date(db: Database, period: str) -> str:
     if period == "ytd":
         found = db.scalar("SELECT MAX(date) FROM daily_prices WHERE date < :y", {"y": db.latest_date[:4] + "-01-01"})
     else:
-        found = db.scalar("SELECT date FROM (SELECT DISTINCT date FROM daily_prices ORDER BY date DESC) AS d "
-                          "LIMIT 1 OFFSET :n", {"n": PERIOD_OFFSETS[period]})
+        # counted back from the same latest day the answer uses, so a trading day added by a live feed between two
+        # reads can never make a period start on its own last day
+        found = db.scalar("SELECT date FROM (SELECT DISTINCT date FROM daily_prices WHERE date <= :last ORDER BY date DESC) AS d "
+                          "LIMIT 1 OFFSET :n", {"n": PERIOD_OFFSETS[period], "last": db.latest_date})
     if found is None:  # never measure a "1 year" change from a shorter history
         raise NotEnoughHistoryError(period)
     return str(found)
