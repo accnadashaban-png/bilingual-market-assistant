@@ -36,4 +36,4 @@ def test_safety_layers_still_apply(server, db) -> None:
     assert data["error"] == "unsafe_query"
     data = payload(asyncio.run(server.call_tool("quote", {"ticker": "ATLS' OR '1'='1"})))
     assert data["error"] == "not_found"
-    assert db.scalar("SELECT COUNT(ticker) FROM companies") == 30
+    assert db.scalar("SELECT COUNT(ticker) FROM companies") == 90

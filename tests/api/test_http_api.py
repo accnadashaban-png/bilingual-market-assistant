@@ -50,7 +50,7 @@ def test_tools_endpoint_and_snapshot(client: TestClient) -> None:
     rows = client.post("/v1/tools/quote", json={"ticker": "ATLS"}).json()["rows"]
     assert rows[0]["ticker"] == "ATLS"
     snap = client.get("/v1/market/snapshot?country=EG").json()
-    assert len(snap["rows"]) == 9 and len({r["ticker"] for r in snap["rows"]}) == 9
+    assert len(snap["rows"]) == 29 and len({r["ticker"] for r in snap["rows"]}) == 29
 
 
 def test_rate_limit(settings) -> None:
