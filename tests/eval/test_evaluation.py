@@ -11,7 +11,7 @@ from market_assistant.eval.runner import track
 
 def test_generated_cases_cover_every_company_and_register(db_path) -> None:
     generated = cases.generated(db_path)
-    assert len(generated) == 30 * (5 + 2 + 2 + 2)
+    assert len(generated) == 90 * (5 + 2 + 2 + 2)
     assert {c["category"].split("/")[-1] for c in generated} == {"en", "egyptian", "gulf", "levantine", "msa"}
     assert len({c["id"] for c in generated}) == len(generated)
     assert len(cases.load(db_path)) > 300
