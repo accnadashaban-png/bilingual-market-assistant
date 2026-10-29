@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.2.0
+
+- **Live data:** the database summary (companies, latest trading day, row count) refreshes every few seconds, and
+  company names follow it, so new prices, days and companies are answered without a restart. Periods are always
+  counted back from the same latest day, so a day added between two reads can never compare a day with itself.
+- **Live price updates:** `append_prices` / `python -m market_assistant add-prices` insert or correct prices and
+  recompute indicators and signals for the affected companies in one transaction. In the app: upload new prices, or
+  switch on the demo feed (fills in trading days up to today, then moves today's prices; never a future date).
+- **Saved conversations:** people, conversations and messages in SQLite (`MA_HISTORY_DB`); a sidebar by day with
+  search across messages, rename, pin and delete; chats and follow-ups survive restarts; per-person access, admin
+  endpoints behind `MA_ADMIN_KEY`, erase a person; emails and card numbers are masked before saving.
+- **Richer answers:** price charts (several companies rebased to 100), follow-up questions in the user's language
+  (each one tested to be answerable), copy and CSV export.
+- **New look:** warm light and dark themes with a switch (light, system, dark), a serif heading face, and a phone
+  layout with a slide-out sidebar. Same theme on the demo dashboard and the widget.
+- `GET /v1/data/status`; Connections explains what a connection is and shows the data's freshness.
+- 172 tests; evaluation still 536 cases at 100%.
+
 ## 3.1.0
 
 - **Local app** (`python -m market_assistant app`): a private desktop app with chat, data connections and AI

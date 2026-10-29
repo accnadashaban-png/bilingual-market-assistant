@@ -36,3 +36,7 @@ reports/*.json
 .coverage
 .mypy_cache/
 .ruff_cache/
+
+# live demo copy and saved chats
+data/live-demo.db
+history.db
