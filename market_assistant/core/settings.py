@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     query_timeout_s: float = Field(2.0, gt=0)
     history_turns: int = Field(6, ge=0, le=20)
     session_ttl_s: int = 1800
+    # Save people and conversations (SQLite file). Off when unset; the local app keeps it next to its settings.
+    history_db: Path | None = None
+    # Key for the admin endpoints (people and conversations). The admin API is off when empty.
+    admin_key: SecretStr = SecretStr("")
     rate_limit_per_minute: int = Field(30, ge=1)
     allowed_origins: list[str] = ["*"]
     log_level: str = "INFO"
