@@ -72,7 +72,7 @@ def create_app(settings: Settings | None = None, assistant: Assistant | None = N
     bot = assistant or Assistant(settings)
     limiter = RateLimiter(settings.rate_limit_per_minute)
 
-    app = FastAPI(title="Bilingual Market Assistant", version="3.2.0",
+    app = FastAPI(title="Bilingual Market Assistant", version="3.3.0",
                   description="Arabic + English market-data assistant over fictional demo data.")
     app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_methods=["GET", "POST", "PATCH", "DELETE"],
                        allow_headers=["Content-Type", "X-Request-ID"], expose_headers=["X-Request-ID"])
