@@ -19,7 +19,7 @@ from market_assistant.db.builder import SCHEMA, indicators_and_signals
 
 SEED = 2026
 END_DATE = date(2026, 10, 23)
-TRADING_DAYS = 320  # enough history for a 200-day average and a 52-week window
+TRADING_DAYS = 520  # about two years: room for a 200-day average, a 52-week window and 1-year changes
 
 # ticker, English name, Arabic name, sector, country, exchange, currency,
 # start price, yearly drift, yearly volatility, shares outstanding (millions)
@@ -55,6 +55,83 @@ COMPANIES = [
     ("ASPH.CA", "Aswan Pharma", "أسوان للأدوية", "Health Care", "EG", "EGX", "EGP", 55, 0.18, 0.30, 400),
     ("FYTK.CA", "Fayoum Tech", "الفيوم للتكنولوجيا", "Technology", "EG", "EGX", "EGP", 14, 0.60, 0.55, 700),
 ]
+
+# 60 more fictional companies (20 per market). Their start price, drift, volatility and share count come from
+# their own seeded generator below, so the first 30 keep their hand-set profiles. Names avoid real listings and
+# common words, so a normal word in a question is never mistaken for a company.
+MORE_COMPANIES = [
+    ('LMNA', 'Lumina Biotech', 'لومينا للتقنية الحيوية', 'Health Care', 'US', 'NASDAQ', 'USD'),
+    ('CDRX', 'Cedar Rail Logistics', 'سيدار للخدمات اللوجستية', 'Industrials', 'US', 'NYSE', 'USD'),
+    ('FRWT', 'Freshwater Utilities', 'فريش ووتر للمرافق', 'Utilities', 'US', 'NYSE', 'USD'),
+    ('IRNV', 'Ironvale Steel', 'آيرون فيل للصلب', 'Materials', 'US', 'NYSE', 'USD'),
+    ('QRSN', 'Quarrystone Homes', 'كواري ستون للإسكان', 'Real Estate', 'US', 'NYSE', 'USD'),
+    ('MPLF', 'Maplefield Foods', 'ميبل فيلد للأغذية', 'Consumer Staples', 'US', 'NYSE', 'USD'),
+    ('SNWV', 'Sunwave Solar', 'صن ويف للطاقة الشمسية', 'Energy', 'US', 'NASDAQ', 'USD'),
+    ('PXLS', 'Pixelstream Games', 'بيكسل ستريم للألعاب', 'Communication Services', 'US', 'NASDAQ', 'USD'),
+    ('TDLN', 'Tideline Shipping', 'تايدلاين للشحن', 'Industrials', 'US', 'NYSE', 'USD'),
+    ('CMPS', 'Compasspoint Payments', 'كومباس بوينت للمدفوعات', 'Financials', 'US', 'NASDAQ', 'USD'),
+    ('HVNH', 'Havenbrook Hospitals', 'هيفن بروك للمستشفيات', 'Health Care', 'US', 'NYSE', 'USD'),
+    ('SLTE', 'Silverleaf Telecom', 'سيلفر ليف للاتصالات', 'Communication Services', 'US', 'NYSE', 'USD'),
+    ('ARXE', 'Aurex Energy', 'أوريكس للطاقة', 'Energy', 'US', 'NYSE', 'USD'),
+    ('NMBL', 'Nimbleware Software', 'نيمبل وير للبرمجيات', 'Technology', 'US', 'NASDAQ', 'USD'),
+    ('GRTH', 'Granite Trust Bank', 'جرانيت ترست المصرفية', 'Financials', 'US', 'NYSE', 'USD'),
+    ('WLWR', 'Willowmere Retail', 'ويلومير للتجزئة', 'Consumer Staples', 'US', 'NYSE', 'USD'),
+    ('ECHS', 'Echoline Audio', 'إيكولاين للصوتيات', 'Technology', 'US', 'NASDAQ', 'USD'),
+    ('KSTL', 'Keystone Freight', 'كيستون للنقل', 'Industrials', 'US', 'NYSE', 'USD'),
+    ('PRAR', 'Prairieland Agro', 'بريري لاند للزراعة', 'Materials', 'US', 'NYSE', 'USD'),
+    ('HLXM', 'Helix Medical Devices', 'هيليكس للأجهزة الطبية', 'Health Care', 'US', 'NASDAQ', 'USD'),
+    ('AMWJ.SR', 'Amwaj Shipping', 'أمواج للملاحة', 'Industrials', 'SA', 'Tadawul', 'SAR'),
+    ('SFRB.SR', 'Safa Digital Bank', 'بنك صفا الرقمي', 'Financials', 'SA', 'Tadawul', 'SAR'),
+    ('BSTN.SR', 'Bustan Agriculture', 'البستان للزراعة', 'Materials', 'SA', 'Tadawul', 'SAR'),
+    ('QMRT.SR', 'Qamar Retail', 'قمر للتجزئة', 'Consumer Staples', 'SA', 'Tadawul', 'SAR'),
+    ('ASIR.SR', 'Asir Mining', 'عسير للتعدين', 'Materials', 'SA', 'Tadawul', 'SAR'),
+    ('TAIF.SR', 'Taif Foods', 'الطائف للأغذية', 'Consumer Staples', 'SA', 'Tadawul', 'SAR'),
+    ('DMMN.SR', 'Dammam Logistics', 'الدمام للخدمات اللوجستية', 'Industrials', 'SA', 'Tadawul', 'SAR'),
+    ('RMLC.SR', 'Rimal Cement', 'رمال للأسمنت', 'Materials', 'SA', 'Tadawul', 'SAR'),
+    ('SHMS.SR', 'Shams Solar', 'شمس للطاقة المتجددة', 'Energy', 'SA', 'Tadawul', 'SAR'),
+    ('SHFA.SR', 'Shifa Medical', 'الشفاء الطبية', 'Health Care', 'SA', 'Tadawul', 'SAR'),
+    ('NJMT.SR', 'Najma Telecom', 'نجمة للاتصالات', 'Communication Services', 'SA', 'Tadawul', 'SAR'),
+    ('ALMS.SR', 'Almas Insurance', 'ألماس للتأمين', 'Financials', 'SA', 'Tadawul', 'SAR'),
+    ('SRAB.SR', 'Sarab Real Estate', 'سراب العقارية', 'Real Estate', 'SA', 'Tadawul', 'SAR'),
+    ('RWAF.SR', 'Rawafid Tech', 'روافد للتقنية', 'Technology', 'SA', 'Tadawul', 'SAR'),
+    ('ZHRN.SR', 'Zahran Energy', 'زهران للطاقة', 'Energy', 'SA', 'Tadawul', 'SAR'),
+    ('MYAH.SR', 'Miyah Utilities', 'مياه للمرافق', 'Utilities', 'SA', 'Tadawul', 'SAR'),
+    ('BNYN.SR', 'Bunyan Construction', 'بنيان للمقاولات', 'Industrials', 'SA', 'Tadawul', 'SAR'),
+    ('MSHQ.SR', 'Mashriq Media', 'المشرق ميديا', 'Communication Services', 'SA', 'Tadawul', 'SAR'),
+    ('JDCH.SR', 'Jeddah Chemicals', 'جدة للكيماويات', 'Materials', 'SA', 'Tadawul', 'SAR'),
+    ('TBUK.SR', 'Tabuk Health', 'تبوك الصحية', 'Health Care', 'SA', 'Tadawul', 'SAR'),
+    ('MNSR.CA', 'Mansoura Dairy', 'المنصورة للألبان', 'Consumer Staples', 'EG', 'EGX', 'EGP'),
+    ('QNAL.CA', 'Qanal Shipping', 'القنال للملاحة', 'Industrials', 'EG', 'EGX', 'EGP'),
+    ('MADI.CA', 'Maadi Software', 'المعادي للبرمجيات', 'Technology', 'EG', 'EGX', 'EGP'),
+    ('NUBA.CA', 'Nubia Mining', 'النوبة للتعدين', 'Materials', 'EG', 'EGX', 'EGP'),
+    ('SIWA.CA', 'Siwa Water', 'سيوة للمياه', 'Utilities', 'EG', 'EGX', 'EGP'),
+    ('TNTA.CA', 'Tanta Textiles', 'طنطا للمنسوجات', 'Industrials', 'EG', 'EGX', 'EGP'),
+    ('DMYT.CA', 'Damietta Furniture', 'دمياط للأثاث', 'Industrials', 'EG', 'EGX', 'EGP'),
+    ('ATBA.CA', 'Ataba Steel', 'العتبة للصلب', 'Materials', 'EG', 'EGX', 'EGP'),
+    ('MNFI.CA', 'Menoufia Bank', 'بنك المنوفية', 'Financials', 'EG', 'EGX', 'EGP'),
+    ('SHRK.CA', 'Sharkia Agro', 'الشرقية للزراعة', 'Materials', 'EG', 'EGX', 'EGP'),
+    ('KHLG.CA', 'Kharga Solar', 'الخارجة للطاقة الشمسية', 'Energy', 'EG', 'EGX', 'EGP'),
+    ('BRLS.CA', 'Burullus Petroleum', 'البرلس للبترول', 'Energy', 'EG', 'EGX', 'EGP'),
+    ('SHMH.CA', 'Sharm Hotels', 'شرم للفنادق', 'Real Estate', 'EG', 'EGX', 'EGP'),
+    ('ALAM.CA', 'Alamein Homes', 'العلمين للإسكان', 'Real Estate', 'EG', 'EGX', 'EGP'),
+    ('QSRM.CA', 'Qasr Medical', 'القصر الطبية', 'Health Care', 'EG', 'EGX', 'EGP'),
+    ('MNYA.CA', 'Minya Pharma', 'المنيا للأدوية', 'Health Care', 'EG', 'EGX', 'EGP'),
+    ('WDNT.CA', 'Wadi Net Telecom', 'وادي نت للاتصالات', 'Communication Services', 'EG', 'EGX', 'EGP'),
+    ('ISML.CA', 'Ismailia Foods', 'الإسماعيلية للأغذية', 'Consumer Staples', 'EG', 'EGX', 'EGP'),
+    ('BHRA.CA', 'Beheira Bank', 'بنك البحيرة', 'Financials', 'EG', 'EGX', 'EGP'),
+    ('MNFL.CA', 'Manfalut Cement', 'منفلوط للأسمنت', 'Materials', 'EG', 'EGX', 'EGP'),
+]
+
+
+def profile(rng: random.Random, country: str) -> tuple[float, float, float, float]:
+    """Start price, yearly drift, yearly volatility and shares outstanding (millions) for an added company."""
+    start = {"US": rng.uniform(15, 160), "SA": rng.uniform(12, 150), "EG": rng.uniform(4, 60)}[country]
+    return round(start, 2), round(rng.uniform(-0.15, 0.45), 2), round(rng.uniform(0.15, 0.5), 2), float(rng.randint(150, 4000))
+
+
+def all_companies() -> list[tuple]:
+    rng = random.Random(SEED + 1)
+    return COMPANIES + [(*c, *profile(rng, c[4])) for c in MORE_COMPANIES]
 
 
 def trading_days(end: date, count: int) -> list[date]:
@@ -104,7 +181,7 @@ def build(out: Path) -> Path:
     out.unlink(missing_ok=True)
     con = sqlite3.connect(out)
     con.executescript(SCHEMA)
-    for t, en, ar, sector, country, exch, cur, start, drift, vol, shares in COMPANIES:
+    for t, en, ar, sector, country, exch, cur, start, drift, vol, shares in all_companies():
         con.execute("INSERT INTO companies VALUES (?,?,?,?,?,?,?,?)", (t, en, ar, sector, country, exch, cur, shares))
         prices = simulate(rng, start, drift, vol, len(days))
         con.executemany("INSERT INTO daily_prices VALUES (?,?,?,?,?,?,?)",
@@ -122,7 +199,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=Path(__file__).resolve().parents[1] / "data" / "market.db")
     path = build(parser.parse_args().out)
-    print(f"wrote {path} ({len(COMPANIES)} fictional companies, {TRADING_DAYS} trading days)")
+    print(f"wrote {path} ({len(all_companies())} fictional companies, {TRADING_DAYS} trading days)")
 
 
 if __name__ == "__main__":
