@@ -1,9 +1,10 @@
-"""FastAPI service: JSON and streaming (SSE) chat, tools, health and metrics.
+"""FastAPI service: JSON and streaming (SSE) chat, saved conversations, tools, health and metrics.
 
     uvicorn market_assistant.api.app:app --reload
 """
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import threading
@@ -13,7 +14,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,9 +34,18 @@ logger = logging.getLogger("market_assistant")
 WEB_DIR = Path(__file__).resolve().parents[2] / "web"
 
 
+USER_ID = r"^[A-Za-z0-9_-]{6,64}$"
+
+
 class AskRequest(BaseModel):
     message: str = Field(min_length=1, max_length=500)
     session_id: str | None = Field(None, max_length=64)
+    user_id: str | None = Field(None, pattern=USER_ID, description="your user's id; with MA_HISTORY_DB their chats are saved")
+
+
+class ConversationUpdate(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=80)
+    pinned: bool | None = None
 
 
 class RateLimiter:
@@ -62,9 +72,9 @@ def create_app(settings: Settings | None = None, assistant: Assistant | None = N
     bot = assistant or Assistant(settings)
     limiter = RateLimiter(settings.rate_limit_per_minute)
 
-    app = FastAPI(title="Bilingual Market Assistant", version="2.0.0",
+    app = FastAPI(title="Bilingual Market Assistant", version="3.2.0",
                   description="Arabic + English market-data assistant over fictional demo data.")
-    app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_methods=["GET", "POST"],
+    app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_methods=["GET", "POST", "PATCH", "DELETE"],
                        allow_headers=["Content-Type", "X-Request-ID"], expose_headers=["X-Request-ID"])
 
     @app.middleware("http")
@@ -97,7 +107,7 @@ def create_app(settings: Settings | None = None, assistant: Assistant | None = N
     @app.post("/v1/ask")
     def ask(body: AskRequest, request: Request) -> dict[str, Any]:
         check_rate(request, body.message)
-        return {**bot.ask(body.message, body.session_id).to_dict(), "request_id": request_id.get()}
+        return {**bot.ask(body.message, body.session_id, body.user_id).to_dict(), "request_id": request_id.get()}
 
     @app.post("/v1/ask/stream")
     def ask_stream(body: AskRequest, request: Request) -> StreamingResponse:
@@ -108,7 +118,7 @@ def create_app(settings: Settings | None = None, assistant: Assistant | None = N
             # the generator runs in a worker thread, so set the id again for the logs written while streaming
             request_id.set(rid)
             try:
-                for event in bot.stream(body.message, body.session_id):
+                for event in bot.stream(body.message, body.session_id, body.user_id):
                     yield f"event: {event['event']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
             except Exception as exc:  # noqa: BLE001 - the stream must always end with a message, never silently
                 if not isinstance(exc, AssistantError):
@@ -119,6 +129,82 @@ def create_app(settings: Settings | None = None, assistant: Assistant | None = N
 
         return StreamingResponse(events(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    # ---------- saved conversations (MA_HISTORY_DB) ----------
+    # Each person sees only their own conversations. The user id is whatever your product uses for its users
+    # (the embeddable widget creates an anonymous one per browser).
+
+    def history() -> Any:
+        if bot.history is None:
+            raise HTTPException(404, detail={"code": "history_off", "message": "Set MA_HISTORY_DB to save conversations."})
+        return bot.history
+
+    def own(conversation_id: str, user_id: str) -> None:
+        if history().owner(conversation_id) != user_id:
+            raise HTTPException(404, detail={"code": "not_found", "message": "No such conversation."})
+
+    @app.get("/v1/conversations")
+    def list_conversations(user_id: str = Query(pattern=USER_ID), q: str = "") -> dict[str, Any]:
+        return {"conversations": history().conversations(user_id, q)}
+
+    @app.get("/v1/conversations/{conversation_id}")
+    def get_conversation(conversation_id: str, user_id: str = Query(pattern=USER_ID)) -> dict[str, Any]:
+        own(conversation_id, user_id)
+        return {"id": conversation_id, "messages": history().messages(conversation_id)}
+
+    @app.patch("/v1/conversations/{conversation_id}")
+    def update_conversation(conversation_id: str, body: ConversationUpdate, user_id: str = Query(pattern=USER_ID)) -> dict[str, Any]:
+        own(conversation_id, user_id)
+        if body.title is not None:
+            history().rename(conversation_id, user_id, body.title)
+        if body.pinned is not None:
+            history().pin(conversation_id, user_id, body.pinned)
+        return {"id": conversation_id, "updated": True}
+
+    @app.delete("/v1/conversations/{conversation_id}")
+    def delete_conversation(conversation_id: str, user_id: str = Query(pattern=USER_ID)) -> dict[str, Any]:
+        own(conversation_id, user_id)
+        return {"id": conversation_id, "deleted": history().delete(conversation_id, user_id)}
+
+    # ---------- admin: people and conversations (MA_ADMIN_KEY) ----------
+
+    def admin(key: str | None) -> Any:
+        expected = settings.admin_key.get_secret_value()
+        if not expected:
+            raise HTTPException(403, detail={"code": "admin_off", "message": "Set MA_ADMIN_KEY to use the admin API."})
+        if not hmac.compare_digest((key or "").encode(), expected.encode()):
+            raise HTTPException(401, detail={"code": "bad_key", "message": "Wrong or missing X-Admin-Key."})
+        return history()
+
+    @app.get("/v1/admin/people")
+    def people(q: str = "", x_admin_key: str | None = Header(None)) -> dict[str, Any]:
+        h = admin(x_admin_key)
+        return {**h.stats(), "people": h.users(q)}
+
+    @app.get("/v1/admin/people/{user_id}")
+    def person(user_id: str, x_admin_key: str | None = Header(None)) -> dict[str, Any]:
+        h = admin(x_admin_key)
+        found = [u for u in h.users(user_id) if u["id"] == user_id]
+        if not found:
+            raise HTTPException(404, detail={"code": "not_found", "message": "No such person."})
+        return {**found[0], "conversations": h.conversations(user_id)}
+
+    @app.delete("/v1/admin/people/{user_id}")
+    def forget_person(user_id: str, x_admin_key: str | None = Header(None)) -> dict[str, Any]:
+        return {"id": user_id, "deleted": admin(x_admin_key).forget_user(user_id)}
+
+    @app.get("/v1/admin/conversations/{conversation_id}")
+    def admin_conversation(conversation_id: str, x_admin_key: str | None = Header(None)) -> dict[str, Any]:
+        h = admin(x_admin_key)
+        owner = h.owner(conversation_id)
+        if owner is None:
+            raise HTTPException(404, detail={"code": "not_found", "message": "No such conversation."})
+        return {"id": conversation_id, "user_id": owner, "messages": h.messages(conversation_id)}
+
+    @app.get("/v1/data/status")
+    def data_status() -> dict[str, Any]:
+        """How fresh the data is: companies, price rows, latest trading day, when it last changed."""
+        return bot.db.status()
 
     @app.get("/v1/llm/providers")
     def llm_providers() -> dict[str, Any]:
