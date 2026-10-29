@@ -1,6 +1,6 @@
 # Evaluation report (offline)
 
-**Score: 100.0%** on 536 cases
+**Score: 100.0%** on 1296 cases
 
 | Metric | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | tool accuracy | 100.0% |
 | fact accuracy | 100.0% |
 | language match | 100.0% |
-| latency p50 / p95 | 64.3 / 162.1 ms |
+| latency p50 / p95 | 316.1 / 751.3 ms |
 
 | Category | Pass rate |
 |---|---|
