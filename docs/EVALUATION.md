@@ -1,7 +1,7 @@
 # Evaluation
 
 ```bash
-python -m market_assistant.eval                       # all 536 cases, offline
+python -m market_assistant.eval                       # all 1,296 cases, offline
 python -m market_assistant.eval --suite golden        # the 47 hand-written cases
 python -m market_assistant.eval --suite golden --judge  # add LLM-as-judge scores (needs an LLM)
 ```
@@ -15,15 +15,15 @@ CI fails if the score drops below 98%.
 | Part | Cases | What it checks |
 |---|---|---|
 | Hand-written golden set (`datasets/golden.jsonl`) | 47 | quotes, performance, movers, sectors, comparisons, screens, signals, fundamentals, market breadth, follow-ups, greetings, advice, out-of-scope, safety |
-| Quotes, 5 registers × 30 companies | 150 | company-name resolution in English, Egyptian, Gulf, Levantine and MSA |
-| Year-to-date performance, fundamentals, risk | 180 | 2 registers × 30 companies each |
-| Risk with recomputed numbers | 30 | volatility and max drawdown must match an independent calculation |
+| Quotes, 5 registers × 90 companies | 450 | company-name resolution in English, Egyptian, Gulf, Levantine and MSA |
+| Year-to-date performance, fundamentals, risk | 540 | 2 registers × 90 companies each |
+| Risk with recomputed numbers | 90 | volatility and max drawdown must match an independent calculation |
 | Movers: 4 markets × 4 periods × up/down × 2 registers | 64 | the **top 5 in the exact order** |
 | Sectors, market breadth, company lists | 17 | best sector; advancers and company counts |
 | Signals and signal performance, every signal type | 14 | signal counts; routing of "hit rate" questions |
-| Multi-turn follow-ups | 20 | "and its revenue?", "وأداؤه من أول السنة؟" resolved from memory |
+| Multi-turn follow-ups | 60 | "and its revenue?", "وأداؤه من أول السنة؟" resolved from memory |
 | Refusals | 14 | writes, prompt injection, news, crypto, gold and forecasts are refused without leaking internals |
-| **Total** | **536** | |
+| **Total** | **1,296** | |
 
 By register (generated cases): English 226, Egyptian 138, MSA 60, Gulf 30, Levantine 30, plus 5 Arabic refusals.
 
@@ -56,7 +56,7 @@ see. A judge failure never fails the run.
 
 | Metric | Score |
 |---|---|
-| Overall (536 cases) | 100% |
+| Overall (1,296 cases) | 100% |
 | Route accuracy | 100% |
 | Tool accuracy | 100% |
 | Fact accuracy | 100% |
