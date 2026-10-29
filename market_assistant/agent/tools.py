@@ -276,7 +276,10 @@ def list_companies(db: Database, a: ListArgs) -> ToolResult:
     SELECT ticker, name_en, name_ar, sector, country FROM companies
     WHERE (:country IS NULL OR country = :country) AND (:sector IS NULL OR sector = :sector)
     ORDER BY sector, ticker"""
-    return ToolResult("list_companies", a.model_dump(), db.fetch(sql, a.model_dump()), sql)
+    # the count comes from the database: the listed rows are capped for display, the total is not
+    total = db.scalar("SELECT COUNT(ticker) AS n FROM companies WHERE (:country IS NULL OR country = :country) "
+                      "AND (:sector IS NULL OR sector = :sector)", a.model_dump())
+    return ToolResult("list_companies", a.model_dump(), db.fetch(sql, a.model_dump()), sql, extra={"total": int(total or 0)})
 
 
 class SignalPerformanceArgs(BaseModel):

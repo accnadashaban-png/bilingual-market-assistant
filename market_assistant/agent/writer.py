@@ -285,8 +285,10 @@ class TemplateWriter:
                     f"{pct(r['worst_day_pct'])}, period return {pct(r['period_return_pct'])}.")
 
         if res.tool == "list_companies":
-            n = len(rows)
+            n = int(res.extra.get("total", len(rows)))
             lead = (f"فيه **{n}** شركة{where} في البيانات:" if ar else f"There are **{n}** companies{where} in the data:")
+            if n > len(rows):
+                lead += (f" (أول {len(rows)} في الجدول)" if ar else f" (the first {len(rows)} are listed)")
             return f"{lead}\n\n" + table(["الشركة" if ar else "Company", "الرمز" if ar else "Ticker", "القطاع" if ar else "Sector"],
                                          [[name(r, lang), r["ticker"], r["sector"]] for r in rows])
 
