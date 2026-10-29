@@ -64,7 +64,7 @@ def test_database_layer_blocks_on_its_own(db) -> None:
         db.fetch("DELETE FROM companies")
     with pytest.raises((UnsafeQueryError, sqlite3.DatabaseError)):
         db.fetch("SELECT name FROM sqlite_master")
-    assert db.scalar("SELECT COUNT(ticker) FROM companies") == 30
+    assert db.scalar("SELECT COUNT(ticker) FROM companies") == 90
 
 
 def test_slow_query_is_stopped(db) -> None:

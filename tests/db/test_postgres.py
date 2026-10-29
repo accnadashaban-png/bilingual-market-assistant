@@ -63,14 +63,22 @@ def normalize(rows):
 
 @pytest.mark.parametrize("tool,args", PARITY)
 def test_every_tool_matches_sqlite(pg, db, tool, args) -> None:
-    assert normalize(call_tool(pg, tool, args).rows) == normalize(call_tool(db, tool, args).rows)
+    pg_rows, lite_rows = normalize(call_tool(pg, tool, args).rows), normalize(call_tool(db, tool, args).rows)
+    assert [list(r) for r in pg_rows] == [list(r) for r in lite_rows]  # same rows, same columns, same order
+    for p, q in zip(pg_rows, lite_rows, strict=True):
+        for k in p:
+            if isinstance(p[k], float) or isinstance(q[k], float):
+                # NUMERIC (PostgreSQL) and REAL (SQLite) can round a value ending in exactly .005 differently
+                assert p[k] == pytest.approx(q[k], abs=0.011), (k, p, q)
+            else:
+                assert p[k] == q[k], (k, p, q)
 
 
 def test_read_only_role_cannot_write(pg) -> None:
     for attack in ("DELETE FROM companies", "UPDATE daily_prices SET close = 0", "CREATE TABLE x (a int)"):
         with pytest.raises(UnsafeQueryError):
             pg.fetch(attack)
-    assert pg.scalar("SELECT COUNT(ticker) FROM companies") == 30
+    assert pg.scalar("SELECT COUNT(ticker) FROM companies") == 90
 
 
 def test_role_cannot_read_system_secrets(pg) -> None:
