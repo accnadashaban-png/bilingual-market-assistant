@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.3.0
+
+- **Bigger demo market:** 90 fictional companies (30 per market, 10 sectors) over about two years (520 trading days):
+  46,800 daily prices and 5,122 technical signals. Names avoid real listings and everyday words.
+- **Evaluation grows with the data:** 1,296 cases (from 536), still 100%, including every company in five registers.
+- Fixed: "how many companies?" counted the rows shown (capped at 50) instead of the database; the count now comes from
+  the database and the answer says when the table is shortened.
+- PostgreSQL parity test allows the one-cent rounding difference between NUMERIC and REAL at exact .005 values.
+
 ## 3.2.0
 
 - **Live data:** the database summary (companies, latest trading day, row count) refreshes every few seconds, and

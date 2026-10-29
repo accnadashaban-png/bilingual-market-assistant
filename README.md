@@ -1,7 +1,7 @@
 # Bilingual Market Assistant
 
 [![CI](https://github.com/accnadashaban-png/bilingual-market-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/accnadashaban-png/bilingual-market-assistant/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![Tests](https://img.shields.io/badge/tests-172-success) ![Eval](https://img.shields.io/badge/eval-536%20cases%20%C2%B7%20100%25-success) ![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![Tests](https://img.shields.io/badge/tests-172-success) ![Eval](https://img.shields.io/badge/eval-1%2C296%20cases%20%C2%B7%20100%25-success) ![License](https://img.shields.io/badge/license-MIT-green)
 
 A conversational AI assistant that answers stock-market questions in **Arabic (Egyptian, Gulf, Levantine, MSA) and English**, straight from a database. It plans with typed tools, runs only safe read-only SQL on **SQLite or PostgreSQL**, streams natural answers with charts and follow-up questions, follows **live data** without a restart, saves each person's conversations like a modern AI assistant, **fails over across a group of LLM providers** when one runs out of quota, and plugs into any dashboard as a chat widget or into any AI app through **MCP**.
 
@@ -23,7 +23,7 @@ A conversational AI assistant that answers stock-market questions in **Arabic (E
 | **14 typed tools** | Quotes, performance, movers, sectors, comparisons, screener, technical signals, **signal hit rates**, **risk (volatility, drawdown, beta)**, fundamentals, market breadth, company lists, and a validated SQL fallback. |
 | **SQLite or PostgreSQL** | Same answers on both, proven by a parity test across every tool. PostgreSQL runs through a SELECT-only role with READ ONLY sessions and a server-side timeout. |
 | **Defense in depth** | Bound parameters, sqlglot validation, read-only access, database permission checks, time limits, row caps and an output gate. Red-team tests include a *compromised model* returning malicious plans. See [SECURITY.md](docs/SECURITY.md). |
-| **Measured** | 536-case evaluation (47 hand-written + generated coverage of every company, dialect, market and period), rankings checked in order, numbers recomputed independently, dataset QA tests, run-over-run tracking and an optional LLM-as-judge. See [EVALUATION.md](docs/EVALUATION.md). |
+| **Measured** | 1,296-case evaluation (47 hand-written + generated coverage of all 90 companies, every dialect, market and period), rankings checked in order, numbers recomputed independently, dataset QA tests, run-over-run tracking and an optional LLM-as-judge. See [EVALUATION.md](docs/EVALUATION.md). |
 | **Production basics** | LangGraph pipeline with per-step timing, FastAPI + SSE, MCP server, rate limiting, JSON logs with request ids, Prometheus metrics, Docker and docker-compose, CI with lint, types, tests, evaluation gate, PostgreSQL job, secrets scan and image smoke test. |
 | **Your own private app** | `python -m market_assistant app` opens it as a desktop app on your machine, in a warm light or dark theme that also works on a phone: import your own CSV files or connect a SQLite / PostgreSQL database, add your own AI keys, and chat. Keys stay on your computer and are never sent back to the page. See [DESKTOP.md](docs/DESKTOP.md). |
 | **Runs offline** | No API key needed: a multi-dialect rule planner and template writer cover every route, so the demo, tests and evaluation run anywhere. |
@@ -166,26 +166,27 @@ Sample rows from the demo (fictional companies):
 |---|---|---|---|---|---|---|---|
 | | ATLS | Atlas Robotics | أطلس للروبوتات | Technology | US | NASDAQ | USD |
 | | NLTC.CA | Nile Telecom | النيل للاتصالات | Communication Services | EG | EGX | EGP |
+| | KHLG.CA | Kharga Solar | الخارجة للطاقة الشمسية | Energy | EG | EGX | EGP |
 
 | `daily_prices` | ticker | date | open | high | low | close | volume |
 |---|---|---|---|---|---|---|---|
-| | ATLS | 2026-10-22 | 143.06 | 143.85 | 137.19 | 138.04 | 1,787,557 |
-| | ATLS | 2026-10-23 | 138.76 | 139.24 | 137.06 | 137.88 | 829,287 |
+| | ATLS | 2026-10-22 | 136.42 | 139.01 | 133.27 | 134.36 | 1,541,741 |
+| | ATLS | 2026-10-23 | 136.46 | 139.94 | 133.95 | 136.36 | 1,707,845 |
 
 | `indicators` | ticker | date | ma50 | ma200 | rsi14 | high_52w | low_52w |
 |---|---|---|---|---|---|---|---|
-| | ATLS | 2026-10-23 | 146.62 | 135.87 | 41.57 | 161.95 | 88.95 |
+| | ATLS | 2026-10-23 | 148.89 | 138.73 | 45.17 | 176.37 | 108.64 |
 
 | `signals` | ticker | date | signal_type | direction | note |
 |---|---|---|---|---|---|
-| | SNRG.CA | 2026-10-23 | volume_spike | bullish | volume above 2.5x its 20-day average |
-| | LXHM.CA | 2026-10-23 | 52w_low_breakdown | bearish | closed 4.03 below the 52-week low 4.13 |
+| | BRLS.CA | 2026-10-23 | rsi_oversold | bullish | RSI(14) fell below 30 |
+| | BRSM | 2026-10-23 | 52w_low_breakdown | bearish | closed 44.51 below the 52-week low 44.82 |
 
 | `fundamentals` | ticker | fiscal_year | revenue_m | net_income_m | eps |
 |---|---|---|---|---|---|
-| | ATLS | 2025 | 22,708.4 | 2,046.5 | 4.99 |
+| | ATLS | 2025 | 27,129.7 | 1,984.0 | 4.84 |
 
-The demo has 30 companies, 9,600 daily prices, 927 signals and 90 fundamentals rows.
+The demo has 90 companies, 46,800 daily prices (two years, October 2024 to October 2026), 5,122 signals and 270 fundamentals rows.
 
 ## Quick start (developers)
 
@@ -195,7 +196,7 @@ python scripts/generate_data.py                 # builds data/market.db
 uvicorn market_assistant.api.app:app            # dashboard + widget on http://127.0.0.1:8000
 python -m market_assistant "Top gainers in Egypt this week"
 pytest                                          # 172 tests
-python -m market_assistant.eval                 # 536-case evaluation
+python -m market_assistant.eval                 # 1,296-case evaluation
 ```
 
 **PostgreSQL stack:** `docker compose up --build` starts PostgreSQL 16, loads the data, creates the read-only role and runs the API on it.
@@ -247,7 +248,7 @@ reports/     latest evaluation report and run history
 
 ## About the data
 
-`scripts/generate_data.py` creates 30 **fictional** companies across the US, Saudi Arabia and Egypt, 320 trading days of synthetic prices from a seeded random walk, and computes moving averages, RSI(14), 52-week ranges, technical signals and three years of fundamentals. Tickers are made up; any match with a real listing is a coincidence.
+`scripts/generate_data.py` creates 90 **fictional** companies (30 each in the US, Saudi Arabia and Egypt, across 10 sectors), 520 trading days (about two years) of synthetic prices from a seeded random walk, and computes moving averages, RSI(14), 52-week ranges, technical signals and three years of fundamentals. Tickers and names are made up and chosen to avoid real listings and everyday words; any match with a real listing is a coincidence.
 
 ## Related
 
